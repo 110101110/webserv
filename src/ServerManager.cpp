@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <utility>
 
 ServerManager::ServerManager() {}
 
@@ -24,8 +25,8 @@ in_addr_t ServerManager::convertIP(const std::string& ip) {
 	int current_part = 0;
 	int shift = 24;
 
-	for (size_t i = 0; i <= ip.length(); ++i) {
-		if (ip[i] == '.' || i == ip.length()) {
+	for (size_t i = 0; i < ip.length(); ++i) {
+		if (ip[i] == '.') {
 			result |= (current_part << shift);
 			shift -= 8;
 			current_part = 0;
@@ -33,6 +34,7 @@ in_addr_t ServerManager::convertIP(const std::string& ip) {
 			current_part = current_part * 10 + (ip[i] - '0');
 		}
 	}
+	result |= (current_part << shift); // On n'oublie pas le dernier nombre après la boucle
 	return htonl(result);
 }
 
@@ -54,19 +56,20 @@ void ServerManager::parseConfig(std::string filename) {
 }
 
 void ServerManager::setupServers() {
-	std::vector<int> bound_ports;
+	std::vector< std::pair<std::string, int> > bound_sockets;
 
 	for (size_t i = 0; i < _configs.size(); ++i) {
-		// Vérification pour ne pas bind() deux fois le même port
 		bool already_bound = false;
-		for (size_t j = 0; j < bound_ports.size(); ++j) {
-			if (bound_ports[j] == _configs[i].port) {
+		for (size_t j = 0; j < bound_sockets.size(); ++j) {
+			if (bound_sockets[j].first == _configs[i].host && 
+				bound_sockets[j].second == _configs[i].port) {
 				already_bound = true;
 				break;
 			}
 		}
+		
 		if (already_bound) {
-			std::cout << "Port " << _configs[i].port << " déjà sur écoute, on passe..." << std::endl;
+			std::cout << "Couple " << _configs[i].host << ":" << _configs[i].port << " déjà sur écoute, on passe..." << std::endl;
 			continue;
 		}
 
@@ -95,8 +98,8 @@ void ServerManager::setupServers() {
 		}
 
 		_listen_fds.push_back(fd);
-		bound_ports.push_back(_configs[i].port);
-		std::cout << "Le serveur écoute sur le FD: " << fd << " (Port: " << _configs[i].port << ")" << std::endl;
+		bound_sockets.push_back(std::make_pair(_configs[i].host, _configs[i].port));
+		std::cout << "Le serveur écoute sur le FD: " << fd << " (" << _configs[i].host << ":" << _configs[i].port << ")" << std::endl;
 	}
 }
 
