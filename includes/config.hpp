@@ -5,13 +5,6 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <sstream>
-#include <fstream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 
 struct Location {
 	std::string path;
@@ -19,6 +12,10 @@ struct Location {
 	std::vector<std::string> methods;
 	std::string index;
 	bool autoindex;
+	std::string return_url;
+	std::string upload_store;
+	std::string cgi_ext;
+	std::string cgi_path;
 
 	Location() : autoindex(false) {}
 };
