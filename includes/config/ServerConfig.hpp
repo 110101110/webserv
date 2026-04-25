@@ -1,7 +1,5 @@
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
+#pragma once
 
-#include <iostream>
 #include <vector>
 #include <string>
 #include <map>
@@ -31,5 +29,3 @@ public:
 
 	ServerConfig() : port(8080), host("127.0.0.1"), client_max_body_size(1000000) {}
 };
-
-#endif

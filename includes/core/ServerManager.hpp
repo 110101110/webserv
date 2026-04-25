@@ -1,32 +1,24 @@
-#ifndef SERVER_MANAGER_HPP
-#define SERVER_MANAGER_HPP
+#pragma once
 
-#include "config.hpp"
+#include "config/ServerConfig.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
-#include <fstream>
-#include <sstream>
-#include <map>
 #include <netinet/in.h>
 
 class ServerManager {
-private:
+	private:
 	std::vector<ServerConfig>	_configs;
 	std::vector<int>			_listen_fds;
-
-	in_addr_t	convertIP(const std::string& ip);
-	std::string	cleanToken(std::string str);
-
-public:
+	in_addr_t	_convertIP(const std::string& ip);
+	public :
 	ServerManager();
+	ServerManager(const std::vector<ServerConfig> &configs);
+	ServerManager(const ServerManager &other);
+	ServerManager &operator=(const ServerManager &other);
 	~ServerManager();
-
-	void	parseConfig(std::string filename);
 	void	setupServers();
-
 	std::vector<int>			getListenFds() const;
 	std::vector<ServerConfig>	getConfigs() const;
 };
 
-#endif
