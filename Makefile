@@ -11,7 +11,8 @@ INC_DIR     = includes
 SRCS        = $(SRCS_DIR)/main.cpp \
               $(SRCS_DIR)/config/ConfigParser.cpp \
               $(SRCS_DIR)/core/ServerManager.cpp \
-              $(SRCS_DIR)/Utils/Utils.cpp
+              $(SRCS_DIR)/utils/Utils.cpp \
+              $(SRCS_DIR)/utils/Logger.cpp
 
 OBJS        = $(SRCS:$(SRCS_DIR)/%.cpp=$(OBJS_DIR)/%.o)
 DEPS        = $(OBJS:.o=.d)
