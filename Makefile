@@ -16,7 +16,7 @@ SRCS        = $(SRCS_DIR)/main.cpp \
               $(SRCS_DIR)/utils/Logger.cpp \
 			  $(SRCS_DIR)/core/HttpRequest.cpp \
 			  $(SRCS_DIR)/core/HttpResponse.cpp \
-			  $(SRCS_DIR)/core/RequestHandler.cpp 
+			  $(SRCS_DIR)/core/RequestHandler.cpp
 =======
               $(SRCS_DIR)/Utils/Utils.cpp
 >>>>>>> dc1519e (refactor parsing, create new file directory structure)
