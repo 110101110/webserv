@@ -196,7 +196,7 @@ void ConfigParser::parseErrorPage(std::stringstream& ss, ServerConfig& server) {
 			for (size_t i = 0; i < codes.size(); ++i) {
 				server.error_pages[codes[i]] = path;
 			}
-			return; 
+			return;
 		} else {
 			if (!Utils::isNumber(word)) throw std::runtime_error("Invalid error_page: codes must be numbers");
 			codes.push_back(std::atoi(word.c_str()));
@@ -267,7 +267,7 @@ void ConfigParser::parseReturnUrl(std::stringstream& ss, Location& loc) {
 	}
 
 	std::string url;
-	if (!(ss >> url) || url.find(';') == std::string::npos) 
+	if (!(ss >> url) || url.find(';') == std::string::npos)
 		throw std::runtime_error("Missing ';' for return directive");
 
 	if (!Utils::isNumber(word))

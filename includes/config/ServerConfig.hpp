@@ -24,10 +24,10 @@ public:
 	std::string host;
 	std::string server_name;
 	size_t client_max_body_size;
-	
+
 	std::string root;
 	std::string index;
-	
+
 	std::map<int, std::string> error_pages;
 	std::vector<Location> locations;
 
