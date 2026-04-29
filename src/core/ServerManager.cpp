@@ -1,7 +1,7 @@
 #include "core/ServerManager.hpp"
 #include "utils/Utils.hpp"
 #include "utils/Logger.hpp"
-#include "Client.hpp"
+#include "core/Client.hpp"
 
 // #include "http/HttpRequest.h"
 
@@ -99,7 +99,6 @@ void ServerManager::setupServers() {
 void ServerManager::run() {
 	LOG_DEBUG("Starting main server loop...");
 	while (true){
-		//check if actions at a socket
 		int ready = poll(&_pollfds[0], _pollfds.size(), -1);
 		if (ready < 0){
 			throw std::runtime_error("poll() failed");
@@ -108,22 +107,19 @@ void ServerManager::run() {
 		for (int i = _pollfds.size() - 1; i >= 0; i --){
 			if (_pollfds[i].revents == 0) continue;
 			int currentFd = _pollfds[i].fd;
-			//3 cases :case 1 socket error or a client disconnet
-			if (_pollfds[i].revents && (POLL_ERR || POLL_HUP || POLLNVAL)){
+			if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
 				LOG_WARNING("Disconnection on FD " + Utils::intToString(currentFd));
 				_closeConnection(currentFd);
 				continue;
 			}
-			//case 2, ready to read
-			if (_pollfds[i].revents && POLL_IN){
+			if (_pollfds[i].revents & POLLIN){
 				if (std::find(_listen_fds.begin(), _listen_fds.end(), currentFd) != _listen_fds.end()){
 					_acceptNewConnection(currentFd);
 				} else{
 					_readFromClient(currentFd);
 				}
 			}
-			//case 3, ready too write and have to check the state of client
-			if (_pollfds[i].revents && POLL_OUT){
+			if (_pollfds[i].revents & POLLOUT){
 				if (_clients[currentFd].getState() == WRITING_REPONSE){
 					_writeToClient(currentFd);
 				}

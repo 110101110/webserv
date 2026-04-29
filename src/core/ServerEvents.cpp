@@ -1,7 +1,7 @@
 #include "core/ServerManager.hpp"
 #include "utils/Utils.hpp"
 #include "utils/Logger.hpp"
-#include "Client.hpp"
+#include "core/Client.hpp"
 
 // #include "http/HttpRequest.h"
 
@@ -75,10 +75,10 @@ void ServerManager::_acceptNewConnection(int serverFd)
 	_clients[newFd] = Client(newFd);
 	struct pollfd pfd;
 	pfd.fd = newFd;
-	pfd.events = POLL_IN;
+	pfd.events = POLLIN;
 	pfd.revents = 0;
 	_pollfds.push_back(pfd);
-	LOG_DEBUG("New connection accpeted on FD: " + Utils::intToString(newFd));
+	LOG_INFO("New connection accpeted on FD: " + Utils::intToString(newFd));
 }
 
 void ServerManager::_readFromClient(int clientFd)
@@ -88,44 +88,39 @@ void ServerManager::_readFromClient(int clientFd)
 	if (client.getState() != READING_REQUEST)
 		return;
 	char buffer[8192];
-	int byteRead = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
-	if (byteRead <= 0)
+	int bytesRead = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
+	if (bytesRead < 0)
 	{
-		LOG_INFO("Connection on FD: " + Utils::intToString(clientFd) + " Failed");
-		close(clientFd);
+		_closeConnection(clientFd);
 		return;
 	}
-	client.appendToRequestBuffer(buffer, byteRead);
-
+	else if (bytesRead == 0)
+	{
+		LOG_INFO("Client on FD " + Utils::intToString(clientFd) + " cleanly disconnected.");
+		_closeConnection(clientFd);
+		return;
+	}
+	client.appendToRequestBuffer(buffer, bytesRead);
 	// when we are sure that request is sent, we parse the request with httpRequest:parse()
 	if (_isRequestComplete(client.getRequestBuffer()))
 	{
 		LOG_INFO("Full request buffered on FD: " + Utils::intToString(clientFd));
-
-		// HttpRequest request;
-		// int status = request.parse(client.getRequestBuffer());
-		// client.setState(PROCESSING);
-		// if (status == -1){
-		// 	client.setState(READING_REQUEST);
-		// 	return;
-		// }
-		// else if (status > 0){
-		// 	LOG_WARNING("HTTP error: " + Utils::intToString(status));
-		// 	std::string errorResponse = "HTTP/1.1 " + Utils::intToString(status) + " Error\r\nContent-Length: 0\r\n\r\n";
-		// 	client.appendToResponseBuffer(errorResponse);
-		// }
-		// else{
-		// 	LOG_INFO("Method: " + request.getMethod() + " Path: " + request.getPath());
-		// 	client.appendToResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello World!");
-		// }
-	}
-	client.setState(WRITING_REPONSE);
-	for (size_t i = 0; i < _pollfds.size(); ++i)
-	{
-		if (_pollfds[i].fd == clientFd)
+		client.setState(PROCESSING);
+		std::string mockResponse =
+			"HTTP/1.0 200 OK\r\n"
+			"Content-Type: text/html\r\n"
+			"Content-Length: 45\r\n"
+			"\r\n"
+			"<h1>Hello from Teammate 2's Multiplexer!</h1>";
+		client.appendToResponseBuffer(mockResponse);
+		client.setState(WRITING_REPONSE);
+		for (size_t i = 0; i < _pollfds.size(); ++i)
 		{
-			_pollfds[i].events = POLLOUT;
-			break;
+			if (_pollfds[i].fd == clientFd)
+			{
+				_pollfds[i].events = POLLOUT;
+				break;
+			}
 		}
 	}
 }
@@ -149,14 +144,14 @@ void ServerManager::_writeToClient(int clientFd)
 	if (client.getResponseBuffer().empty())
 	{
 		client.setState(DONE);
-		LOG_DEBUG("HTTP/1.0 Transaction complete, closing FD: " + Utils::intToString(clientFd));
+		LOG_INFO("HTTP/1.0 Transaction complete, closing FD: " + Utils::intToString(clientFd));
 		_closeConnection(clientFd);
 	}
 }
 
 void ServerManager::_closeConnection(int clientFd)
 {
-	for (std::vector<struct pollfd>::iterator it = _pollfds.begin(); it != _pollfds.end(); ++it)
+	for (std::vector<struct pollfd>::iterator it = _pollfds.begin(); it != _pollfds.end(); it++)
 	{
 		if (it->fd == clientFd)
 		{
@@ -167,3 +162,19 @@ void ServerManager::_closeConnection(int clientFd)
 	_clients.erase(clientFd);
 	close(clientFd);
 }
+
+
+//to link httprequest with readfromClient
+// if (status == -1){
+// 	client.setState(READING_REQUEST);
+// 	return;
+// }
+// else if (status > 0){
+// 	LOG_WARNING("HTTP error: " + Utils::intToString(status));
+// 	std::string errorResponse = "HTTP/1.1 " + Utils::intToString(status) + " Error\r\nContent-Length: 0\r\n\r\n";
+// 	client.appendToResponseBuffer(errorResponse);
+// }
+// else{
+// 	LOG_INFO("Method: " + request.getMethod() + " Path: " + request.getPath());
+// 	client.appendToResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello World!");
+// }
