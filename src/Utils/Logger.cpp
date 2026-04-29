@@ -5,6 +5,7 @@
 
 namespace Logger{
 
+	//only fro debugging
 	std::string _getTimestamp()
 	{
 		time_t rawtime;
