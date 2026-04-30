@@ -11,15 +11,11 @@ INC_DIR     = includes
 SRCS        = $(SRCS_DIR)/main.cpp \
               $(SRCS_DIR)/config/ConfigParser.cpp \
               $(SRCS_DIR)/core/ServerManager.cpp \
-<<<<<<< HEAD
               $(SRCS_DIR)/utils/Utils.cpp \
               $(SRCS_DIR)/utils/Logger.cpp \
 			  $(SRCS_DIR)/core/HttpRequest.cpp \
 			  $(SRCS_DIR)/core/HttpResponse.cpp \
 			  $(SRCS_DIR)/core/RequestHandler.cpp
-=======
-              $(SRCS_DIR)/Utils/Utils.cpp
->>>>>>> dc1519e (refactor parsing, create new file directory structure)
 
 OBJS        = $(SRCS:$(SRCS_DIR)/%.cpp=$(OBJS_DIR)/%.o)
 DEPS        = $(OBJS:.o=.d)
