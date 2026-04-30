@@ -15,9 +15,9 @@ SRCS        = $(SRCS_DIR)/main.cpp \
               $(SRCS_DIR)/core/Client.cpp \
               $(SRCS_DIR)/utils/Utils.cpp \
               $(SRCS_DIR)/utils/Logger.cpp \
-			  $(SRCS_DIR)/core/HttpRequest.cpp \
-			  $(SRCS_DIR)/core/HttpResponse.cpp \
-			  $(SRCS_DIR)/core/RequestHandler.cpp
+			  $(SRCS_DIR)/http/HttpRequest.cpp \
+			  $(SRCS_DIR)/http/HttpResponse.cpp \
+			  $(SRCS_DIR)/http/RequestHandler.cpp
 
 OBJS        = $(SRCS:$(SRCS_DIR)/%.cpp=$(OBJS_DIR)/%.o)
 DEPS        = $(OBJS:.o=.d)
@@ -37,11 +37,11 @@ $(OBJS_DIR)/%.o: $(SRCS_DIR)/%.cpp
 
 clean:
 	rm -rf $(OBJS_DIR)
-	@echo "Objets et dépendances supprimés."
+	@echo "$(GREEN)Objects files deleted.$(RESET)"
 
 fclean: clean
 	rm -f $(NAME)
-	@echo "Exécutable supprimé."
+	@echo "$(GREEN)Executable file deleted.$(RESET)"
 
 re: fclean all
 

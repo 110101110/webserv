@@ -4,9 +4,7 @@
 #include "utils/Utils.hpp"
 #include "utils/Logger.hpp"
 #include "core/Client.hpp"
-
-// #include "http/HttpRequest.h"
-
+#include "http/HttpRequest.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -40,24 +38,6 @@ ServerManager::~ServerManager() {
 			Logger::log(Logger::INFO, ss.str());
 		}
 	}
-}
-
-in_addr_t ServerManager::_convertIP(const std::string& ip) {
-	in_addr_t result = 0;
-	std::stringstream ss(ip);
-	std::string segment;
-	int count = 0;
-
-	while (std::getline(ss, segment, '.')) {
-		if (segment.empty() || segment.length() > 3 || count >= 4 || !Utils::isNumber(segment))
-			throw std::runtime_error("Invalid IP format: " + ip);
-		int val = std::atoi(segment.c_str());
-		if (val < 0 || val > 255) throw std::runtime_error("IP value out of bounds (0-255)");
-		result = (result << 8) + val;
-		count++;
-	}
-	if (count != 4) throw std::runtime_error("Incomplete IP (expected 4 segments)");
-	return htonl(result);
 }
 
 void ServerManager::setupServers() {

@@ -1,4 +1,5 @@
-#include "../../includes/core/RequestHandler.hpp"
+#include "http/RequestHandler.hpp"
+#include "utils/Utils.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -41,13 +42,13 @@ bool RequestHandler::findLocation(const std::string &path,
 //     {
 //         std::cerr << "comparing: '" << path << "' with '" << config.locations[i].path << "'" << std::endl;
 //         std::cerr << "find result: " << path.find(config.locations[i].path) << std::endl;
-        
+
 //         if (path.find(config.locations[i].path) == 0)
 //         {
 //             size_t loc_len = config.locations[i].path.length();
 //             std::cerr << "loc_len: " << loc_len << " path_len: " << path.length() << std::endl;
 //             std::cerr << "next char: '" << path[loc_len] << "'" << std::endl;
-            
+
 //             if (path.length() == loc_len || path[loc_len] == '/' || config.locations[i].path == "/")
 //             {
 //                 std::cerr << "MATCH" << std::endl;
@@ -62,11 +63,6 @@ bool RequestHandler::findLocation(const std::string &path,
 //     return (best_length == 0 ? false : true);
 // }
 
-std::string intToString(const int & value) {
-    std::ostringstream oss;
-    oss << value;
-    return oss.str();
-}
 
 HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 	const ServerConfig &config)
@@ -83,7 +79,7 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 
 	if (request.getBody().size() > config.client_max_body_size)
 		return (buildErrorResponse(413));
-    
+
     // std::cerr << "path: " << request.getPath() << std::endl; //debug
     // std::cerr << "locations size: " << config.locations.size() << std::endl; //debug
 	if (!findLocation(request.getPath(), config, loc))
@@ -112,7 +108,7 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 		else if (request.getMethod() == "DELETE")
 			return (handleDelete(request, loc));
 	}
-	
+
 	return (buildErrorResponse(501)); // Not Implemented
 }
 
@@ -141,7 +137,7 @@ HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &l
 		char *envp[7];
 		std::string s0 = "REQUEST_METHOD=" + req.getMethod();
 		std::string s1 = "QUERY_STRING="   + req.getQueryString();
-		std::string s2 = "CONTENT_LENGTH=" + intToString(req.getBody().size());
+		std::string s2 = "CONTENT_LENGTH=" + Utils::intToString(req.getBody().size());
 		std::string content_type_val = "";
 		std::map<std::string, std::string>::const_iterator it = req.getHeader().find("content-type");
 		if (it != req.getHeader().end())
@@ -149,8 +145,8 @@ HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &l
 		std::string s3 = "CONTENT_TYPE=" + content_type_val;
 		std::string s4 = "SCRIPT_NAME="    + loc.root + req.getPath();
 		std::string s5 = "PATH_INFO="      + loc.root + req.getPath();
-		
-		
+
+
 		envp[0] = (char *)s0.c_str();
 		envp[1] = (char *)s1.c_str();
 		envp[2] = (char *)s2.c_str();
@@ -223,7 +219,7 @@ HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &l
     }
 
     res.setStatus(200, "OK");
-	res.addHeader("Content-Length", intToString(body.size()));
+	res.addHeader("Content-Length", Utils::intToString(body.size()));
     res.setBody(body);
 
     return res;
@@ -303,7 +299,7 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	HttpResponse res;
 	res.setStatus(200, "OK");
 	res.addHeader("Content-Type", content_type);
-    res.addHeader("Content-Length", intToString(content.size()));
+    res.addHeader("Content-Length", Utils::intToString(content.size()));
 	res.setBody(content);
 	return (res);
 }
@@ -364,8 +360,8 @@ HttpResponse RequestHandler::buildErrorResponse(int code)
     }
     res.setStatus(code, message);
     res.addHeader("Content-Type", "text/html");
-    std::string body = "<html><body><h1>" + intToString(code) + " " + message + "</h1></body></html>";
-    res.addHeader("Content-Length", intToString(body.size()));
+    std::string body = "<html><body><h1>" + Utils::intToString(code) + " " + message + "</h1></body></html>";
+    res.addHeader("Content-Length", Utils::intToString(body.size()));
     res.setBody(body);
     return (res);
 }
@@ -446,7 +442,7 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
             break;
         }
 
-        size_t data_end = next_boundary - 2; 
+        size_t data_end = next_boundary - 2;
 
         file.write(body.c_str() + data_start, data_end - data_start);
         file.close();

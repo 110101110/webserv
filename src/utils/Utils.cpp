@@ -24,4 +24,27 @@ namespace Utils{
         ss << number;
         return ss.str();
     }
+
+    bool isValidIP(const std::string &ip)
+    {
+        if (ip.empty() || ip[ip.length() - 1] == '.')
+            return false;
+
+        std::stringstream ss(ip);
+        std::string segment;
+        int count = 0;
+
+        while (std::getline(ss, segment, '.'))
+        {
+            if (segment.empty() || segment.length() > 3 || !isNumber(segment))
+                return false;
+
+            int val = std::atoi(segment.c_str());
+            if (val < 0 || val > 255)
+                return false;
+
+            count++;
+        }
+        return count == 4;
+    }
 }

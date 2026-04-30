@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 
-//classes from http, however we name it
 
 enum ClientState{
 	READING_REQUEST,
@@ -18,10 +17,7 @@ class Client{
 	std::string _requestBuffer;
 	std::string _responseBuffer;
 
-	//http objects eventually
-
-	public:
-	Client();
+	public : Client();
 	Client(int fd);
 	Client(const Client &other);
 	Client &operator=(const Client &other);

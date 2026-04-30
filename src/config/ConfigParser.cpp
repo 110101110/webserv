@@ -1,4 +1,5 @@
 #include "config/ConfigParser.hpp"
+#include "utils/Logger.hpp"
 #include "utils/Utils.hpp"
 #include <fstream>
 #include <stdexcept>

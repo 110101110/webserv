@@ -1,4 +1,4 @@
-#include "../../includes/core/HttpRequest.hpp"
+#include "http/HttpRequest.hpp"
 
 HttpRequest::HttpRequest() : is_complete(false), _error_code(0) {}
 
@@ -31,7 +31,7 @@ int toInt(const std::string& str)
 {
     if (str.empty())
     {
-        return -1; 
+        return -1;
     }
     for (size_t i = 0; i < str.size(); i++)
     {

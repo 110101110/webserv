@@ -2,17 +2,14 @@
 #include "utils/Utils.hpp"
 #include "utils/Logger.hpp"
 #include "core/Client.hpp"
-
-// #include "http/HttpRequest.h"
-
-#include <iostream>
-#include <stdexcept>
+#include "http/HttpRequest.hpp"
+#include "http/HttpResponse.hpp"
+#include "http/RequestHandler.hpp"
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <cstdlib>
-#include <cstring>
 #include <sstream>
+#include <string>
 
 in_addr_t ServerManager::_convertIP(const std::string &ip)
 {
@@ -24,15 +21,15 @@ in_addr_t ServerManager::_convertIP(const std::string &ip)
 	while (std::getline(ss, segment, '.'))
 	{
 		if (segment.empty() || segment.length() > 3 || count >= 4 || !Utils::isNumber(segment))
-			throw std::runtime_error("Invalid IP format: " + ip);
+			LOG_ERROR("Invalid IP format: " + ip);
 		int val = std::atoi(segment.c_str());
 		if (val < 0 || val > 255)
-			throw std::runtime_error("IP value out of range (0-255)");
+			LOG_ERROR("IP value out of range (0-255)");
 		result = (result << 8) + val;
 		count++;
 	}
-	if (count != 4)
-		throw std::runtime_error("Incomplete IP (4 segments expected)");
+	if (!Utils::isValidIP(ip))
+		LOG_ERROR("Invalid IP");
 	return htonl(result);
 }
 
@@ -89,30 +86,29 @@ void ServerManager::_readFromClient(int clientFd)
 		return;
 	char buffer[8192];
 	int bytesRead = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
-	if (bytesRead < 0)
-	{
-		_closeConnection(clientFd);
-		return;
-	}
-	else if (bytesRead == 0)
+	if (bytesRead <= 0)
 	{
 		LOG_INFO("Client on FD " + Utils::intToString(clientFd) + " cleanly disconnected.");
 		_closeConnection(clientFd);
 		return;
 	}
 	client.appendToRequestBuffer(buffer, bytesRead);
-	// when we are sure that request is sent, we parse the request with httpRequest:parse()
 	if (_isRequestComplete(client.getRequestBuffer()))
 	{
-		LOG_INFO("Full request buffered on FD: " + Utils::intToString(clientFd));
+		LOG_DEBUG("Full request buffered on FD: " + Utils::intToString(clientFd));
 		client.setState(PROCESSING);
-		std::string mockResponse =
-			"HTTP/1.0 200 OK\r\n"
-			"Content-Type: text/html\r\n"
-			"Content-Length: 45\r\n"
-			"\r\n"
-			"<h1>Hello from Teammate 2's Multiplexer!</h1>";
-		client.appendToResponseBuffer(mockResponse);
+
+		HttpRequest request;
+		request.parse(client.getRequestBuffer());
+		HttpResponse response;
+		RequestHandler handler;
+		ServerConfig& config = _configs[0];
+		response = handler.handleRequest(request, config);
+		//fro http 1.0 where no keep alive
+		response.addHeader("Connection", "close");
+
+		client.appendToResponseBuffer(response.toString());
+
 		client.setState(WRITING_REPONSE);
 		for (size_t i = 0; i < _pollfds.size(); ++i)
 		{
@@ -163,18 +159,3 @@ void ServerManager::_closeConnection(int clientFd)
 	close(clientFd);
 }
 
-
-//to link httprequest with readfromClient
-// if (status == -1){
-// 	client.setState(READING_REQUEST);
-// 	return;
-// }
-// else if (status > 0){
-// 	LOG_WARNING("HTTP error: " + Utils::intToString(status));
-// 	std::string errorResponse = "HTTP/1.1 " + Utils::intToString(status) + " Error\r\nContent-Length: 0\r\n\r\n";
-// 	client.appendToResponseBuffer(errorResponse);
-// }
-// else{
-// 	LOG_INFO("Method: " + request.getMethod() + " Path: " + request.getPath());
-// 	client.appendToResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello World!");
-// }
