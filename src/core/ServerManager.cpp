@@ -2,6 +2,11 @@
 #include "core/Client.hpp"
 #include "utils/Logger.hpp"
 #include "utils/Utils.hpp"
+#include "utils/Logger.hpp"
+#include "core/Client.hpp"
+
+// #include "http/HttpRequest.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -66,18 +71,20 @@ void ServerManager::setupServers() {
 			}
 		}
 		if (already_bound) {
-			std::stringstream ss;
-			ss << "Virtual Host (IP:Port already bound) for " << _configs[i].host << ":" << _configs[i].port;
-			Logger::log(Logger::INFO, ss.str());
+			LOG_INFO("Virtual host configured for " + _configs[i].host + ":" + Utils::intToString(_configs[i].port));
 			continue;
 		}
 
 		int fd = socket(AF_INET, SOCK_STREAM, 0);
-		if (fd < 0) throw std::runtime_error("socket() error");
-
+		if (fd < 0)
+			throw std::runtime_error("socket() failed");
 		int opt = 1;
-		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) throw std::runtime_error("setsockopt failed");
-		if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0) { close(fd); throw std::runtime_error("fcntl failed"); }
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
+			close(fd); throw std::runtime_error("Failed to set SO_REUSEADDR option");
+		}
+		if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0){
+			close(fd); throw std::runtime_error("Failed to set non-blocking mode");
+		}
 
 		struct sockaddr_in addr;
 		addr.sin_family = AF_INET;
@@ -87,27 +94,61 @@ void ServerManager::setupServers() {
 			addr.sin_zero[k] = 0;
 		}
 
-		if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0){
 			close(fd);
-			std::stringstream ss;
-			ss << "Cannot bind to " << _configs[i].host << ":" << _configs[i].port << " (OS). Skipping...";
-			Logger::log(Logger::WARNING, ss.str());
+			LOG_ERROR("Failed to bind on " + _configs[i].host + ":" + Utils::intToString(_configs[i].port) + " Skipping...");
 			continue;
 		}
-		if (listen(fd, 128) < 0) { close(fd); throw std::runtime_error("listen failed"); }
-
+		if (listen(fd, 128) < 0){
+			close(fd);
+			throw std::runtime_error("listen failed");
+		}
 		_listen_fds.push_back(fd);
 		bound_sockets.push_back(std::make_pair(_configs[i].host, _configs[i].port));
 
-		std::stringstream ss;
-		ss << "Socket " << fd << " listening on " << _configs[i].host << ":" << _configs[i].port;
-		Logger::log(Logger::INFO, ss.str());
+		//adding fd to pollfd for multiplexer
+		struct pollfd pfd;
+		pfd.fd = fd;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		_pollfds.push_back(pfd);
+
+		LOG_INFO("Server listening on " + _configs[i].host + ":" + Utils::intToString( _configs[i].port) + " FD: " + Utils::intToString(fd));
 	}
 
 	if (_listen_fds.empty())
-		throw std::runtime_error("No server could be started.");
+		throw std::runtime_error("Failed to start any servers. Check your configuration file.");
 }
 
-std::vector<int> ServerManager::getListenFds() const { return _listen_fds; }
+void ServerManager::run() {
+	LOG_DEBUG("Starting main server loop...");
+	while (true){
+		int ready = poll(&_pollfds[0], _pollfds.size(), -1);
+		if (ready < 0){
+			throw std::runtime_error("poll() failed");
+			break;
+		}
+		for (int i = _pollfds.size() - 1; i >= 0; i --){
+			if (_pollfds[i].revents == 0) continue;
+			int currentFd = _pollfds[i].fd;
+			if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
+				LOG_WARNING("Disconnection on FD " + Utils::intToString(currentFd));
+				_closeConnection(currentFd);
+				continue;
+			}
+			if (_pollfds[i].revents & POLLIN){
+				if (std::find(_listen_fds.begin(), _listen_fds.end(), currentFd) != _listen_fds.end()){
+					_acceptNewConnection(currentFd);
+				} else{
+					_readFromClient(currentFd);
+				}
+			}
+			if (_pollfds[i].revents & POLLOUT){
+				if (_clients[currentFd].getState() == WRITING_REPONSE){
+					_writeToClient(currentFd);
+				}
+			}
+		}
+	}
+}
 
-std::vector<ServerConfig> ServerManager::getConfigs() const { return _configs; }

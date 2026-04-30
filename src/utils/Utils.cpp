@@ -17,4 +17,11 @@ namespace Utils{
             str.erase(pos);
         return str;
     }
+
+    std::string intToString(int number)
+    {
+        std::stringstream ss;
+        ss << number;
+        return ss.str();
+    }
 }
