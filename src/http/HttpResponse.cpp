@@ -21,7 +21,7 @@ void HttpResponse::setBody(const std::string &body)
 
 std::string HttpResponse::toString() const
 {
-    std::string response = "HTTP/1.1 " + Utils::intToString(_status_code) + " " + _status_message + "\r\n";
+    std::string response = "HTTP/1.0 " + Utils::intToString(_status_code) + " " + _status_message + "\r\n";
     for (std::map<std::string, std::string>::const_iterator it = _header.begin(); it != _header.end(); ++it)
     {
         response += it->first + ": " + it->second + "\r\n";

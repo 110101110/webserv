@@ -90,7 +90,27 @@ void ConfigParser::parse(const std::string& filename) {
 			if (new_server.port == -1) throw std::runtime_error("Each server must have a port (listen)");
 			if (new_server.locations.empty()) throw std::runtime_error("Each server must have at least one location");
 
+			// inheritance check
+			for (size_t i = 0; i < new_server.locations.size(); ++i){
+				if (new_server.locations[i].root.empty()){
+					new_server.locations[i].root = new_server.root;
+				}
+				if (new_server.locations[i].index.empty() && !new_server.index.empty()){
+					new_server.locations[i].index = new_server.index;
+				}
+			}
 			_configs.push_back(new_server);
+		}
+	}
+	// fixing port conflict
+	for (size_t i = 0; i < _configs.size(); ++i)
+	{
+		for (size_t j = i + 1; j < _configs.size(); ++j){
+			if (_configs[i].port == _configs[j].port &&
+				_configs[i].host == _configs[j].host &&
+				_configs[i].server_name == _configs[j].server_name){
+					throw std::runtime_error("Duplicate virtual server definition for host: " + _configs[i].host + ":" + Utils::intToString(_configs[i].port) + " server_name: " + _configs[i].server_name);
+			}
 		}
 	}
 	if (_configs.empty())

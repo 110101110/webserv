@@ -244,7 +244,18 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	}
 	if (S_ISDIR(s.st_mode))
 	{
-		if (loc.autoindex)
+        //fix: adding '/' at the end of path to find an index.html if it exist
+        std::string index_path = file_path;
+        if (index_path[index_path.size() - 1] != '/'){
+            index_path += '/';
+        }
+        index_path += loc.index.empty() ? "index.html" : loc.index;
+        struct stat index_stat;
+        if (stat(index_path.c_str(), &index_stat) == 0 && S_ISREG(index_stat.st_mode)){
+            file_path = index_path;
+            s = index_stat;
+        }
+        else if (loc.autoindex)
 		{
 			std::string body = "<html><body><h1>Directory listing for " + req.getPath() + "</h1><ul>";
 			DIR *dir = opendir(file_path.c_str());
