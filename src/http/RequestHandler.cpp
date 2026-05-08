@@ -9,6 +9,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include "utils/Logger.hpp"
 
 bool RequestHandler::findLocation(const std::string &path,
 	const ServerConfig &config, Location &result)
@@ -74,18 +75,18 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
     // std::cerr << "max body: " << config.client_max_body_size << std::endl; //debug
     if (request.getErrorCode() != 0)
     {
-        return (buildErrorResponse(request.getErrorCode()));
+		return buildErrorResponse(request.getErrorCode(), config);
     }
 
 	if (request.getBody().size() > config.client_max_body_size)
-		return (buildErrorResponse(413));
+		return buildErrorResponse(413, config);
 
     // std::cerr << "path: " << request.getPath() << std::endl; //debug
     // std::cerr << "locations size: " << config.locations.size() << std::endl; //debug
 	if (!findLocation(request.getPath(), config, loc))
     {
         // std::cerr << "location not found" << std::endl; //debug
-        return (buildErrorResponse(404));
+		return buildErrorResponse(404, config);
     }
 	// std::cerr << "location found: " << loc.path << std::endl; //debug
     if (!loc.return_url.empty())
@@ -96,33 +97,33 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 	}
 	if (std::find(loc.methods.begin(), loc.methods.end(),
 			request.getMethod()) == loc.methods.end())
-		return (buildErrorResponse(405));
+		return buildErrorResponse(405, config);
 	if (!loc.cgi_ext.empty() && (request.getPath().substr(request.getPath().find_last_of(".")) == loc.cgi_ext))
-		return (handleCgi(request, loc));
+		return (handleCgi(request, loc, config));
 	else
 	{
 		if (request.getMethod() == "GET")
-			return (handleGet(request, loc));
+			return (handleGet(request, loc, config));
 		else if (request.getMethod() == "POST")
-			return (handlePost(request, loc));
+			return (handlePost(request, loc, config));
 		else if (request.getMethod() == "DELETE")
-			return (handleDelete(request, loc));
+			return (handleDelete(request, loc, config));
 	}
 
-	return (buildErrorResponse(501)); // Not Implemented
+	return (buildErrorResponse(501, config));
 }
 
-HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &loc) //gerer les timeouts
+HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &loc, const ServerConfig &config) //gerer les timeouts
 {
     int inPipe[2];
     int outPipe[2];
 
     if (pipe(inPipe) == -1 || pipe(outPipe) == -1)
-        return buildErrorResponse(500);
+        return buildErrorResponse(500, config);
 
     pid_t pid = fork();
     if (pid < 0)
-        return buildErrorResponse(500);
+        return buildErrorResponse(500, config);
 
     if (pid == 0)
     {
@@ -196,7 +197,7 @@ HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &l
 
     size_t pos = output.find("\r\n\r\n");
     if (pos == std::string::npos)
-        return buildErrorResponse(500);
+        return buildErrorResponse(500, config);
 
     std::string headers = output.substr(0, pos);
     std::string body = output.substr(pos + 4);
@@ -226,7 +227,7 @@ HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &l
 }
 
 HttpResponse RequestHandler::handleGet(const HttpRequest &req,
-	const Location &loc)
+	const Location &loc, const ServerConfig &config)
 {
 	std::string file_path = loc.root + req.getPath();
     // std::cerr << "file_path: " << file_path << std::endl; //debug
@@ -240,7 +241,7 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	struct stat s;
 	if (stat(file_path.c_str(), &s) == -1)
 	{
-		return (buildErrorResponse(404));
+		return buildErrorResponse(404, config);
 	}
 	if (S_ISDIR(s.st_mode))
 	{
@@ -282,7 +283,7 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 		}
 		else
 		{
-			return (buildErrorResponse(403));
+			return buildErrorResponse(403, config);
 		}
 	}
 	std::string content_type = "application/octet-stream";
@@ -303,7 +304,7 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	}
 	std::ifstream file(file_path.c_str(), std::ios::binary);
 	if (!file.is_open())
-		return (buildErrorResponse(403));
+		return buildErrorResponse(403, config);
 	std::ostringstream ss;
 	ss << file.rdbuf();
 	std::string content = ss.str();
@@ -315,76 +316,142 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	return (res);
 }
 
-HttpResponse RequestHandler::handleDelete(const HttpRequest &req,const Location &loc)
+HttpResponse RequestHandler::handleDelete(const HttpRequest &req,const Location &loc, const ServerConfig &config)
 {
     std::string file_path = loc.root + req.getPath();
     struct stat s;
     if (stat(file_path.c_str(), &s) == -1)
     {
-        return (buildErrorResponse(404));
+        return buildErrorResponse(404, config);
     }
     if (S_ISDIR(s.st_mode))
     {
-        return (buildErrorResponse(403));
+        return buildErrorResponse(403, config);
     }
     if (remove(file_path.c_str()) != 0)
     {
-        return (buildErrorResponse(500));
+        return buildErrorResponse(500, config);
     }
     HttpResponse res;
     res.setStatus(204, "No Content");
     return (res);
 }
 
-HttpResponse RequestHandler::buildErrorResponse(int code)
+std::string RequestHandler::_getStatusMessage(int code)
+{
+	switch (code) {
+		case 400: return "Bad Request";
+		case 403: return "Forbidden";
+		case 404: return "Not Found";
+		case 405: return "Method Not Allowed";
+		case 413: return "Payload Too Large";
+		case 500: return "Internal Server Error";
+		case 501: return "Not Implemented";
+		case 502: return "Bad Gateway";
+		case 503: return "Service Unavailable";
+		case 504: return "Gateway Timeout";
+		case 505: return "HTTP Version Not Supported";
+		default:  return "Error";
+	}
+}
+
+HttpResponse RequestHandler::buildErrorResponse(int code, const ServerConfig &config)
+{
+	HttpResponse res;
+	std::string message = _getStatusMessage(code);
+	res.setStatus(code, message);
+
+	// recherche page erreur perso
+	std::map<int, std::string>::const_iterator it = config.error_pages.find(code);
+	if (it != config.error_pages.end())
+	{
+		std::string error_path = config.root;
+		if (!error_path.empty() && error_path[error_path.size() - 1] != '/')
+			error_path += "/";
+		error_path += it->second;
+
+		std::ifstream file(error_path.c_str());
+		if (file.is_open())
+		{
+			std::ostringstream ss;
+			ss << file.rdbuf();
+			std::string content = ss.str();
+			res.addHeader("Content-Type", "text/html");
+			res.addHeader("Content-Length", Utils::intToString(content.size()));
+			res.setBody(content);
+			return res;
+		}
+		LOG_WARNING("Custom error page not found: " + error_path);
+	}
+
+	// Fallback
+	std::string body = "<html><head><title>" + Utils::intToString(code) + " " + message + "</title></head>";
+	body += "<body style='font-family:sans-serif; text-align:center; padding-top:10%; background:#f4f4f4;'>";
+	body += "<h1>" + Utils::intToString(code) + " " + message + "</h1><hr style='width:50%'>";
+	body += "<p>webserv/1.0</p></body></html>";
+
+	res.addHeader("Content-Type", "text/html");
+	res.addHeader("Content-Length", Utils::intToString(body.size()));
+	res.setBody(body);
+	return res;
+}
+
+/*
+HttpResponse RequestHandler::buildErrorResponse(int code, const ServerConfig &config)
 {
     HttpResponse res;
     std::string message;
-    switch (code)
-    {
-    case 400:
-        message = "Bad Request";
-        break;
-    case 403:
-        message = "Forbidden";
-        break;
-    case 404:
-        message = "Not Found";
-        break;
-    case 405:
-        message = "Method Not Allowed";
-        break;
-    case 413:
-        message = "Payload Too Large";
-        break;
-    case 500:
-        message = "Internal Server Error";
-        break;
-    case 501:
-        message = "Not Implemented";
-        break;
-    case 505:
-        message = "HTTP Version Not Supported";
-        break;
-    default:
-        message = "Error";
+
+    switch (code) {
+        case 400: message = "Bad Request"; break;
+        case 403: message = "Forbidden"; break;
+        case 404: message = "Not Found"; break;
+        case 405: message = "Method Not Allowed"; break;
+        case 413: message = "Payload Too Large"; break;
+        case 500: message = "Internal Server Error"; break;
+        case 501: message = "Not Implemented"; break;
+        case 502: message = "Bad Gateway"; break;
+        case 503: message = "Service Unavailable"; break;
+        case 504: message = "Gateway Timeout"; break;
+        case 505: message = "HTTP Version Not Supported"; break;
+        default:  message = "Error";
     }
+
     res.setStatus(code, message);
-    res.addHeader("Content-Type", "text/html");
+
+    std::map<int, std::string>::const_iterator it = config.error_pages.find(code);
+    if (it != config.error_pages.end())
+    {
+        std::string error_path = config.root + "/" + it->second;
+        std::ifstream file(error_path.c_str());
+        if (file.is_open())
+        {
+            std::ostringstream ss;
+            ss << file.rdbuf();
+            std::string content = ss.str();
+            res.addHeader("Content-Type", "text/html");
+            res.addHeader("Content-Length", Utils::intToString(content.size()));
+            res.setBody(content);
+            return res;
+        }
+    }
+
     std::string body = "<html><body><h1>" + Utils::intToString(code) + " " + message + "</h1></body></html>";
+    res.addHeader("Content-Type", "text/html");
     res.addHeader("Content-Length", Utils::intToString(body.size()));
     res.setBody(body);
-    return (res);
+    return res;
 }
+*/
 
-HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &loc)
+HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &loc, const ServerConfig &config)
 {
     if (loc.upload_store.empty())
-        return buildErrorResponse(403);
+        return buildErrorResponse(403, config);
 
     std::map<std::string, std::string> headers = req.getHeader();
     if (headers.find("content-type") == headers.end())
-        return buildErrorResponse(400);
+        return buildErrorResponse(400, config);
 
     std::string content_type = headers["content-type"];
 
@@ -394,7 +461,7 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
         std::string file_path = loc.upload_store + "/" + filename;
         std::ofstream file(file_path.c_str(), std::ios::binary);
         if (!file.is_open())
-            return buildErrorResponse(500);
+            return buildErrorResponse(500, config);
         file << req.getBody();
         file.close();
         HttpResponse res;
@@ -404,7 +471,7 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
 
     size_t boundary_pos = content_type.find("boundary=");
     if (boundary_pos == std::string::npos)
-        return buildErrorResponse(400);
+        return buildErrorResponse(400, config);
 
     std::string boundary = "--" + content_type.substr(boundary_pos + 9);
     std::string end_boundary = boundary + "--";
@@ -413,7 +480,7 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
 
     size_t pos = body.find(boundary);
     if (pos == std::string::npos)
-        return buildErrorResponse(400);
+        return buildErrorResponse(400, config);
 
     while (pos != std::string::npos)
     {
@@ -443,7 +510,7 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
 
         std::ofstream file(file_path.c_str(), std::ios::binary);
         if (!file.is_open())
-            return buildErrorResponse(500);
+            return buildErrorResponse(500, config);
 
         size_t data_start = headers_end + 4;
 
