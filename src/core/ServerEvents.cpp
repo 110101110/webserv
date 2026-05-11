@@ -49,13 +49,14 @@ bool ServerManager::_isRequestComplete(const std::string &buffer)
 
 		return (actualBodyReceived >= expectedBodySize);
 	}
-	size_t chunkedPos = buffer.find("Transfer-Encoding: chunked");
+	// chunk transfer encoding, not in http 1.0
+	/*size_t chunkedPos = buffer.find("Transfer-Encoding: chunked");
 	if (chunkedPos != std::string::npos && chunkedPos < headerEnd)
 	{
 		if (buffer.find("0\r\n\r\n") != std::string::npos)
 			return true;
 		return false;
-	}
+	}*/
 	return true;
 }
 
