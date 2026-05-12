@@ -11,4 +11,5 @@ namespace Utils{
 	std::string cleanToken(std::string str);
 	std::string intToString(int number);
 	bool isValidIP(const std::string &ip);
+	std::string htmlEscape(const std::string &s);
 }

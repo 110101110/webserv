@@ -2,18 +2,23 @@
 
 #include "core/Client.hpp"
 #include "config/ServerConfig.hpp"
+#include "http/CgiContext.hpp"
 #include <vector>
+#include <map>
 #include <string>
 #include <iostream>
 #include <netinet/in.h>
 #include <poll.h>
+
+static const int CGI_TIMEOUT_SEC = 30;
 
 class ServerManager {
 	private:
 	std::vector<ServerConfig>	_configs;
 	std::vector<int>			_listen_fds;
 	std::vector<struct pollfd>	_pollfds;
-	std::map<int, Client> _clients;
+	std::map<int, Client>		_clients;
+	std::map<int, CgiContext>	_cgiContexts; // clé : pipe_out fd
 
 	//helper funtion for setup
 	in_addr_t	_convertIP(const std::string& ip);
@@ -24,6 +29,11 @@ class ServerManager {
 	void	_writeToClient(int clientFd);
 	void	_closeConnection(int clientFd);
 	bool	_isRequestComplete(const std::string& buffer);
+
+	// CGI non-bloquant
+	void	_readCgiOutput(int pipeFd);
+	void	_finalizeCgi(int pipeFd);
+	void	_checkCgiTimeouts();
 
 	public :
 	ServerManager();

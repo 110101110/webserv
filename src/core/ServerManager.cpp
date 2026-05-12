@@ -103,32 +103,40 @@ void ServerManager::setupServers() {
 void ServerManager::run() {
 	LOG_DEBUG("Starting main server loop...");
 	while (true){
-		int ready = poll(&_pollfds[0], _pollfds.size(), -1);
+		int ready = poll(&_pollfds[0], _pollfds.size(), 1000); // timeout 1s pour les checks CGI
 		if (ready < 0){
 			throw std::runtime_error("poll() failed");
-			break;
 		}
-		for (int i = _pollfds.size() - 1; i >= 0; i --){
+		for (int i = _pollfds.size() - 1; i >= 0; i--){
 			if (_pollfds[i].revents == 0) continue;
 			int currentFd = _pollfds[i].fd;
+
+			// POLLHUP / POLLERR : pipe CGI fermé (processus terminé) ou erreur client
 			if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
-				LOG_WARNING("Disconnection on FD " + Utils::intToString(currentFd));
-				_closeConnection(currentFd);
+				if (_cgiContexts.count(currentFd)){
+					_readCgiOutput(currentFd); // vide les données restantes puis finalise
+				} else {
+					LOG_WARNING("Disconnection on FD " + Utils::intToString(currentFd));
+					_closeConnection(currentFd);
+				}
 				continue;
 			}
 			if (_pollfds[i].revents & POLLIN){
 				if (std::find(_listen_fds.begin(), _listen_fds.end(), currentFd) != _listen_fds.end()){
 					_acceptNewConnection(currentFd);
-				} else{
+				} else if (_cgiContexts.count(currentFd)){
+					_readCgiOutput(currentFd);
+				} else {
 					_readFromClient(currentFd);
 				}
 			}
 			if (_pollfds[i].revents & POLLOUT){
-				if (_clients[currentFd].getState() == WRITING_REPONSE){
+				if (_clients.count(currentFd) && _clients[currentFd].getState() == WRITING_REPONSE){
 					_writeToClient(currentFd);
 				}
 			}
 		}
+		_checkCgiTimeouts();
 	}
 }
 

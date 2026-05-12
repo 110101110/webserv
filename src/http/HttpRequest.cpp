@@ -1,11 +1,11 @@
 #include "http/HttpRequest.hpp"
 
-HttpRequest::HttpRequest() : is_complete(false), _error_code(0) {}
+HttpRequest::HttpRequest() : _is_complete(false), _error_code(0) {}
 
 HttpRequest::HttpRequest(const HttpRequest& other)
     : _method(other._method), _path(other._path), _query_string(other._query_string),
       _http_version(other._http_version), _header(other._header), _body(other._body),
-      is_complete(other.is_complete), _error_code(other._error_code) {}
+      _is_complete(other._is_complete), _error_code(other._error_code) {}
 
 HttpRequest& HttpRequest::operator=(const HttpRequest& other)
 {
@@ -17,7 +17,7 @@ HttpRequest& HttpRequest::operator=(const HttpRequest& other)
         _http_version = other._http_version;
         _header = other._header;
         _body = other._body;
-        is_complete = other.is_complete;
+        _is_complete = other._is_complete;
         _error_code = other._error_code;
     }
     return *this;
@@ -25,24 +25,35 @@ HttpRequest& HttpRequest::operator=(const HttpRequest& other)
 
 HttpRequest::~HttpRequest() {}
 
-char toLowerChar(unsigned char c) { return std::tolower(c); }
+static char toLowerChar(unsigned char c) { return std::tolower(c); }
 
-int toInt(const std::string& str)
+static long toInt(const std::string& str)
 {
     if (str.empty())
-    {
         return -1;
-    }
     for (size_t i = 0; i < str.size(); i++)
     {
         if (!std::isdigit(str[i]))
             return -1;
     }
-    return std::atoi(str.c_str());
+    char *end;
+    long val = std::strtol(str.c_str(), &end, 10);
+    if (*end != '\0' || val < 0)
+        return -1;
+    return val;
 }
 
 int HttpRequest::parse(std::string request)
 {
+    _method       = "";
+    _path         = "";
+    _query_string = "";
+    _http_version = "";
+    _header.clear();
+    _body         = "";
+    _is_complete   = false;
+    _error_code   = 0;
+
     if(request.empty() || request.find("\r\n\r\n") == std::string::npos)
     {
         _error_code = -1; // Incomplete Request
@@ -114,7 +125,20 @@ int HttpRequest::parse(std::string request)
                 std::string key = header_line.substr(0, delimiter_pos);
                 std::transform(key.begin(), key.end(), key.begin(), toLowerChar);
                 std::string value = header_line.substr(delimiter_pos + 2);
-                _header[key] = value;
+
+                if (_header.count(key))
+                {
+                    // Host et Content-Length dupliqués = 400 (HTTP Request Smuggling)
+                    if (key == "host" || key == "content-length")
+                    {
+                        _error_code = 400;
+                        return _error_code;
+                    }
+                    // Autres headers : concaténation RFC 7230 
+                    _header[key] += ", " + value;
+                }
+                else
+                    _header[key] = value;
             }
             version_end = header_end;
         }
@@ -130,20 +154,20 @@ int HttpRequest::parse(std::string request)
         }
         if (_header.find("content-length") != _header.end())
         {
-            int content_length = toInt(_header["content-length"]);
+            long content_length = toInt(_header["content-length"]);
             if (content_length == -1)
             {
                 _error_code = 400;
                 return _error_code;
             }
-            if ((int)_body.size() < content_length)
+            if ((long)_body.size() < content_length)
             {
-                _error_code = -1; // Incomplete Request
+                _error_code = -1;
                 return _error_code;
             }
         }
 
-        is_complete = true;
+        _is_complete = true;
     }
 
 
@@ -162,7 +186,7 @@ const std::map<std::string, std::string>& HttpRequest::getHeader() const { retur
 
 std::string HttpRequest::getBody() const { return _body; }
 
-bool HttpRequest::isComplete() const { return is_complete; }
+bool HttpRequest::isComplete() const { return _is_complete; }
 
 int HttpRequest::getErrorCode() const {return _error_code;}
 

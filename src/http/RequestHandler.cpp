@@ -11,19 +11,95 @@
 #include <cctype>
 #include "utils/Logger.hpp"
 
+
+static bool _matchTildePattern(const std::string &pattern, const std::string &path)
+{
+    std::string ext;
+    for (size_t i = 0; i < pattern.size(); i++)
+    {
+        if (pattern[i] == '$' && i + 1 == pattern.size())
+            break;
+        if (pattern[i] == '\\' && i + 1 < pattern.size())
+            ext += pattern[++i];
+        else
+            ext += pattern[i];
+    }
+    if (ext.empty() || ext.size() > path.size())
+        return false;
+    return path.compare(path.size() - ext.size(), ext.size(), ext) == 0;
+}
+
+// ── Path traversal guard ──────────────────────────────────────────────────────
+// Normalise un chemin en résolvant les composants "..".
+// Retourne "" si le chemin tente de sortir de la racine (traversal détecté).
+static std::string _normalizePath(const std::string &path)
+{
+    std::vector<std::string> parts;
+    size_t i = 0;
+
+    while (i <= path.size())
+    {
+        size_t slash = path.find('/', i);
+        std::string seg = (slash == std::string::npos)
+            ? path.substr(i)
+            : path.substr(i, slash - i);
+        i = (slash == std::string::npos) ? path.size() + 1 : slash + 1;
+
+        if (seg.empty() || seg == ".")
+            continue;
+        if (seg == "..")
+        {
+            if (parts.empty())
+                return ""; // tentative de sortir au-dessus de la racine
+            parts.pop_back();
+        }
+        else
+            parts.push_back(seg);
+    }
+
+    std::string result = "/";
+    for (size_t j = 0; j < parts.size(); j++)
+        result += (j > 0 ? "/" : "") + parts[j];
+    return result;
+}
+
+// Retourne root + req_path si le chemin est sûr, chaîne vide si traversal détecté.
+static std::string _resolvePath(const std::string &root,
+                                 const std::string &req_path)
+{
+    if (_normalizePath(req_path) == "")
+        return "";
+    return root + req_path;
+}
+
 bool RequestHandler::findLocation(const std::string &path,
 	const ServerConfig &config, Location &result)
 {
-	size_t	best_length;
-	size_t	loc_len;
-
-	best_length = 0;
+	// Passe 1 : locations ~ (extension matching), premier match gagne
 	for (size_t i = 0; i < config.locations.size(); ++i)
 	{
-		if (path.find(config.locations[i].path) == 0)
+		const std::string &lpath = config.locations[i].path;
+		if (lpath.size() > 2 && lpath[0] == '~' && lpath[1] == ' ')
 		{
-			loc_len = config.locations[i].path.length();
-			if (path.length() == loc_len || path[loc_len] == '/' || config.locations[i].path == "/")
+			if (_matchTildePattern(lpath.substr(2), path))
+			{
+				result = config.locations[i];
+				return true;
+			}
+		}
+	}
+
+	// Passe 2 : locations préfixe, longest match gagne
+	size_t best_length = 0;
+	for (size_t i = 0; i < config.locations.size(); ++i)
+	{
+		const std::string &lpath = config.locations[i].path;
+		if (lpath.size() > 2 && lpath[0] == '~' && lpath[1] == ' ')
+			continue;
+		if (path.find(lpath) == 0)
+		{
+			size_t loc_len = lpath.length();
+			if (path.length() == loc_len || path[loc_len] == '/' || lpath == "/")
 			{
 				if (loc_len > best_length)
 				{
@@ -33,207 +109,202 @@ bool RequestHandler::findLocation(const std::string &path,
 			}
 		}
 	}
-	return (best_length == 0 ? false : true);
+	return (best_length > 0);
 }
-
-// bool RequestHandler::findLocation(const std::string &path, const ServerConfig &config, Location &result) //debug
-// {
-//     size_t best_length = 0;
-//     for (size_t i = 0; i < config.locations.size(); ++i)
-//     {
-//         std::cerr << "comparing: '" << path << "' with '" << config.locations[i].path << "'" << std::endl;
-//         std::cerr << "find result: " << path.find(config.locations[i].path) << std::endl;
-
-//         if (path.find(config.locations[i].path) == 0)
-//         {
-//             size_t loc_len = config.locations[i].path.length();
-//             std::cerr << "loc_len: " << loc_len << " path_len: " << path.length() << std::endl;
-//             std::cerr << "next char: '" << path[loc_len] << "'" << std::endl;
-
-//             if (path.length() == loc_len || path[loc_len] == '/' || config.locations[i].path == "/")
-//             {
-//                 std::cerr << "MATCH" << std::endl;
-//                 if (loc_len > best_length)
-//                 {
-//                     best_length = loc_len;
-//                     result = config.locations[i];
-//                 }
-//             }
-//         }
-//     }
-//     return (best_length == 0 ? false : true);
-// }
 
 
 HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
-	const ServerConfig &config)
+	const ServerConfig &config, CgiContext *cgi_out)
 {
 	Location		loc;
 	HttpResponse	res;
 
-    // std::cerr << "body size: " << request.getBody().size() << std::endl; //debug
-    // std::cerr << "max body: " << config.client_max_body_size << std::endl; //debug
-    if (request.getErrorCode() != 0)
-    {
+	if (request.getErrorCode() != 0)
 		return buildErrorResponse(request.getErrorCode(), config);
-    }
 
 	if (request.getBody().size() > config.client_max_body_size)
 		return buildErrorResponse(413, config);
 
-    // std::cerr << "path: " << request.getPath() << std::endl; //debug
-    // std::cerr << "locations size: " << config.locations.size() << std::endl; //debug
 	if (!findLocation(request.getPath(), config, loc))
-    {
-        // std::cerr << "location not found" << std::endl; //debug
 		return buildErrorResponse(404, config);
-    }
-	// std::cerr << "location found: " << loc.path << std::endl; //debug
-    if (!loc.return_url.empty())
+
+	if (!loc.return_url.empty())
 	{
 		res.setStatus(301, "Moved Permanently");
 		res.addHeader("Location", loc.return_url);
-		return (res);
+		return res;
 	}
 	if (std::find(loc.methods.begin(), loc.methods.end(),
 			request.getMethod()) == loc.methods.end())
 		return buildErrorResponse(405, config);
-	if (!loc.cgi_ext.empty() && (request.getPath().substr(request.getPath().find_last_of(".")) == loc.cgi_ext))
-		return (handleCgi(request, loc, config));
-	else
+
+	size_t dot_pos = request.getPath().find_last_of(".");
+	if (!loc.cgi_ext.empty() && dot_pos != std::string::npos &&
+		request.getPath().substr(dot_pos) == loc.cgi_ext)
 	{
-		if (request.getMethod() == "GET")
-			return (handleGet(request, loc, config));
-		else if (request.getMethod() == "POST")
-			return (handlePost(request, loc, config));
-		else if (request.getMethod() == "DELETE")
-			return (handleDelete(request, loc, config));
+		if (cgi_out == NULL)
+			return buildErrorResponse(500, config);
+		if (!launchCgi(request, loc, config, *cgi_out))
+			return buildErrorResponse(500, config);
+		return res; // réponse ignorée, cgi_out->isValid() == true
 	}
 
-	return (buildErrorResponse(501, config));
+	if (request.getMethod() == "GET")
+		return handleGet(request, loc, config);
+	if (request.getMethod() == "POST")
+		return handlePost(request, loc, config);
+	if (request.getMethod() == "DELETE")
+		return handleDelete(request, loc, config);
+
+	return buildErrorResponse(501, config);
 }
 
-HttpResponse RequestHandler::handleCgi(const HttpRequest &req, const Location &loc, const ServerConfig &config) //gerer les timeouts
+// Lance le CGI de façon non-bloquante :
+// - fork + exec
+// - pipe_out mis en O_NONBLOCK (le parent lit via poll)
+// - body POST écrit de façon synchrone (taille limitée par client_max_body_size)
+// - remplit ctx, retourne true si succès
+bool RequestHandler::launchCgi(const HttpRequest &req, const Location &loc,
+	const ServerConfig &config, CgiContext &ctx)
 {
-    int inPipe[2];
-    int outPipe[2];
+	(void)config;
+	int inPipe[2];
+	int outPipe[2];
 
-    if (pipe(inPipe) == -1 || pipe(outPipe) == -1)
-        return buildErrorResponse(500, config);
+	if (pipe(inPipe) == -1)
+		return false;
+	if (pipe(outPipe) == -1)
+	{
+		close(inPipe[0]); close(inPipe[1]);
+		return false;
+	}
 
-    pid_t pid = fork();
-    if (pid < 0)
-        return buildErrorResponse(500, config);
+	// Le parent lit outPipe[0] via poll → non-bloquant
+	fcntl(outPipe[0], F_SETFL, O_NONBLOCK);
 
-    if (pid == 0)
-    {
-        dup2(inPipe[0], STDIN_FILENO);
-        dup2(outPipe[1], STDOUT_FILENO);
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		close(inPipe[0]); close(inPipe[1]);
+		close(outPipe[0]); close(outPipe[1]);
+		return false;
+	}
 
-        close(inPipe[1]);
-        close(outPipe[0]);
-        close(inPipe[0]);
-        close(outPipe[1]);
+	if (pid == 0)
+	{
+		dup2(inPipe[0], STDIN_FILENO);
+		dup2(outPipe[1], STDOUT_FILENO);
+		close(inPipe[0]); close(inPipe[1]);
+		close(outPipe[0]); close(outPipe[1]);
+		for (int fd = 3; fd < 1024; fd++)
+			close(fd);
 
-		char *envp[7];
 		std::string s0 = "REQUEST_METHOD=" + req.getMethod();
 		std::string s1 = "QUERY_STRING="   + req.getQueryString();
 		std::string s2 = "CONTENT_LENGTH=" + Utils::intToString(req.getBody().size());
-		std::string content_type_val = "";
-		std::map<std::string, std::string>::const_iterator it = req.getHeader().find("content-type");
+		std::string content_type_val;
+		std::map<std::string, std::string>::const_iterator it =
+			req.getHeader().find("content-type");
 		if (it != req.getHeader().end())
 			content_type_val = it->second;
-		std::string s3 = "CONTENT_TYPE=" + content_type_val;
-		std::string s4 = "SCRIPT_NAME="    + loc.root + req.getPath();
-		std::string s5 = "PATH_INFO="      + loc.root + req.getPath();
+		std::string s3 = "CONTENT_TYPE="    + content_type_val;
+		std::string script_path = loc.root + req.getPath();
+		std::string s4 = "SCRIPT_FILENAME=" + script_path;
+		std::string s5 = "PATH_INFO="       + req.getPath();
+		std::string s6 = "SCRIPT_NAME="     + req.getPath();
 
-
+		char *envp[8];
 		envp[0] = (char *)s0.c_str();
 		envp[1] = (char *)s1.c_str();
 		envp[2] = (char *)s2.c_str();
 		envp[3] = (char *)s3.c_str();
 		envp[4] = (char *)s4.c_str();
 		envp[5] = (char *)s5.c_str();
-		envp[6] = NULL;
-		std::string script_path = loc.root + req.getPath();
+		envp[6] = (char *)s6.c_str();
+		envp[7] = NULL;
 
-        // EXEC
-        char *argv[3];
-        argv[0] = (char *)loc.cgi_path.c_str();   // ex: /usr/bin/python3
-        argv[1] = (char *)script_path.c_str();    // script
-        argv[2] = NULL;
+		char *argv[3];
+		argv[0] = (char *)loc.cgi_path.c_str();
+		argv[1] = (char *)script_path.c_str();
+		argv[2] = NULL;
 
-        execve(argv[0], argv, envp);
+		execve(argv[0], argv, envp);
+		exit(1);
+	}
 
-        // si exec échoue
-        perror("execve");
-        exit(1);
-    }
+	// Parent
+	close(inPipe[0]);
+	close(outPipe[1]);
 
-    // PARENT
+	// Écriture du body (synchrone, taille bornée par client_max_body_size)
+	if (!req.getBody().empty())
+		write(inPipe[1], req.getBody().c_str(), req.getBody().size());
+	close(inPipe[1]);
 
-    close(inPipe[0]);
-    close(outPipe[1]);
+	ctx.pid        = pid;
+	ctx.pipe_out   = outPipe[0];
+	ctx.start_time = time(NULL);
+	return true;
+}
 
-    // envoyer body (POST)
-    if (!req.getBody().empty())
-        write(inPipe[1], req.getBody().c_str(), req.getBody().size()); //integrer poll pour éviter blocage si le script ne lit pas tout de suite
-    close(inPipe[1]);
+// static
+// Parse la sortie brute CGI (headers\r\n\r\nbody) en HttpResponse.
+HttpResponse RequestHandler::parseCgiOutput(const std::string &raw)
+{
+	HttpResponse res;
 
-    // lire output
-    char buffer[1024];
-    std::string output;
-    int bytes;
+	// Supporte \r\n\r\n (standard) et \n\n (certains scripts Unix)
+	size_t sep  = raw.find("\r\n\r\n");
+	size_t skip = 4;
+	if (sep == std::string::npos)
+	{
+		sep  = raw.find("\n\n");
+		skip = 2;
+	}
+	if (sep == std::string::npos)
+	{
+		res.setStatus(500, "Internal Server Error");
+		std::string body = "<html><body><h1>500 Internal Server Error</h1>"
+		                   "<p>CGI output malformed</p></body></html>";
+		res.addHeader("Content-Type", "text/html");
+		res.addHeader("Content-Length", Utils::intToString(body.size()));
+		res.setBody(body);
+		return res;
+	}
 
-    while ((bytes = read(outPipe[0], buffer, sizeof(buffer))) > 0) //integrer poll pour éviter blocage si le script ne lit pas tout de suite
-        output.append(buffer, bytes);
+	std::string hdr_raw = raw.substr(0, sep);
+	std::string body    = raw.substr(sep + skip);
 
-    close(outPipe[0]);
-
-    waitpid(pid, NULL, 0);
-
-    // PARSE CGI OUTPUT
-    HttpResponse res;
-
-    size_t pos = output.find("\r\n\r\n");
-    if (pos == std::string::npos)
-        return buildErrorResponse(500, config);
-
-    std::string headers = output.substr(0, pos);
-    std::string body = output.substr(pos + 4);
-
-    std::istringstream stream(headers);
-    std::string line;
-
-    while (std::getline(stream, line))
-    {
-        if (line.empty())
-            continue;
-
-        size_t sep = line.find(":");
-        if (sep != std::string::npos)
-        {
-            std::string key = line.substr(0, sep);
-            std::string value = line.substr(sep + 2); // skip ": "
-            res.addHeader(key, value);
-        }
-    }
-
-    res.setStatus(200, "OK");
+	std::istringstream stream(hdr_raw);
+	std::string line;
+	while (std::getline(stream, line))
+	{
+		// Retire le \r final (getline ne le retire pas)
+		if (!line.empty() && line[line.size() - 1] == '\r')
+			line.resize(line.size() - 1);
+		if (line.empty()) continue;
+		size_t colon = line.find(':');
+		if (colon != std::string::npos)
+		{
+			std::string key = line.substr(0, colon);
+			std::string val = line.substr(colon + 1);
+			size_t s = val.find_first_not_of(' ');
+			if (s != std::string::npos) val = val.substr(s);
+			res.addHeader(key, val);
+		}
+	}
+	res.setStatus(200, "OK");
 	res.addHeader("Content-Length", Utils::intToString(body.size()));
-    res.setBody(body);
-
-    return res;
+	res.setBody(body);
+	return res;
 }
 
 HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 	const Location &loc, const ServerConfig &config)
 {
-	std::string file_path = loc.root + req.getPath();
-    // std::cerr << "file_path: " << file_path << std::endl; //debug
-    // struct stat s;
-    // int stat_result = stat(file_path.c_str(), &s);
-    // std::cerr << "stat result: " << stat_result << std::endl;
+	std::string file_path = _resolvePath(loc.root, req.getPath());
+	if (file_path.empty())
+		return buildErrorResponse(403, config);
 	if (file_path[file_path.size() - 1] == '/')
 	{
 		file_path += loc.index.empty() ? "index.html" : loc.index;
@@ -258,28 +329,29 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
         }
         else if (loc.autoindex)
 		{
-			std::string body = "<html><body><h1>Directory listing for " + req.getPath() + "</h1><ul>";
 			DIR *dir = opendir(file_path.c_str());
-			if (dir)
+			if (!dir)
+				return buildErrorResponse(500, config);
+			std::string body = "<html><body><h1>Directory listing for "
+				+ Utils::htmlEscape(req.getPath()) + "</h1><ul>";
+			struct dirent *entry;
+			while ((entry = readdir(dir)) != NULL)
 			{
-				struct dirent *entry;
-				while ((entry = readdir(dir)) != NULL)
+				std::string name = entry->d_name;
+				if (name != "." && name != "..")
 				{
-					std::string name = entry->d_name;
-					if (name != "." && name != "..")
-					{
-						body += "<li><a href=\"" + name + "\">" + name
-							+ "</a></li>";
-					}
+					std::string escaped = Utils::htmlEscape(name);
+					body += "<li><a href=\"" + escaped + "\">" + escaped + "</a></li>";
 				}
-				closedir(dir);
 			}
+			closedir(dir);
 			body += "</ul></body></html>";
 			HttpResponse res;
 			res.setStatus(200, "OK");
 			res.addHeader("Content-Type", "text/html");
+			res.addHeader("Content-Length", Utils::intToString(body.size()));
 			res.setBody(body);
-			return (res);
+			return res;
 		}
 		else
 		{
@@ -318,7 +390,9 @@ HttpResponse RequestHandler::handleGet(const HttpRequest &req,
 
 HttpResponse RequestHandler::handleDelete(const HttpRequest &req,const Location &loc, const ServerConfig &config)
 {
-    std::string file_path = loc.root + req.getPath();
+    std::string file_path = _resolvePath(loc.root, req.getPath());
+    if (file_path.empty())
+        return buildErrorResponse(403, config);
     struct stat s;
     if (stat(file_path.c_str(), &s) == -1)
     {
@@ -396,53 +470,6 @@ HttpResponse RequestHandler::buildErrorResponse(int code, const ServerConfig &co
 	return res;
 }
 
-/*
-HttpResponse RequestHandler::buildErrorResponse(int code, const ServerConfig &config)
-{
-    HttpResponse res;
-    std::string message;
-
-    switch (code) {
-        case 400: message = "Bad Request"; break;
-        case 403: message = "Forbidden"; break;
-        case 404: message = "Not Found"; break;
-        case 405: message = "Method Not Allowed"; break;
-        case 413: message = "Payload Too Large"; break;
-        case 500: message = "Internal Server Error"; break;
-        case 501: message = "Not Implemented"; break;
-        case 502: message = "Bad Gateway"; break;
-        case 503: message = "Service Unavailable"; break;
-        case 504: message = "Gateway Timeout"; break;
-        case 505: message = "HTTP Version Not Supported"; break;
-        default:  message = "Error";
-    }
-
-    res.setStatus(code, message);
-
-    std::map<int, std::string>::const_iterator it = config.error_pages.find(code);
-    if (it != config.error_pages.end())
-    {
-        std::string error_path = config.root + "/" + it->second;
-        std::ifstream file(error_path.c_str());
-        if (file.is_open())
-        {
-            std::ostringstream ss;
-            ss << file.rdbuf();
-            std::string content = ss.str();
-            res.addHeader("Content-Type", "text/html");
-            res.addHeader("Content-Length", Utils::intToString(content.size()));
-            res.setBody(content);
-            return res;
-        }
-    }
-
-    std::string body = "<html><body><h1>" + Utils::intToString(code) + " " + message + "</h1></body></html>";
-    res.addHeader("Content-Type", "text/html");
-    res.addHeader("Content-Length", Utils::intToString(body.size()));
-    res.setBody(body);
-    return res;
-}
-*/
 
 HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &loc, const ServerConfig &config)
 {
@@ -458,7 +485,9 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
     if (content_type.find("multipart/form-data") == std::string::npos)
     {
         std::string filename = req.getPath().substr(req.getPath().find_last_of("/") + 1);
-        std::string file_path = loc.upload_store + "/" + filename;
+        std::string file_path = _resolvePath(loc.upload_store, "/" + filename);
+        if (file_path.empty())
+            return buildErrorResponse(403, config);
         std::ofstream file(file_path.c_str(), std::ios::binary);
         if (!file.is_open())
             return buildErrorResponse(500, config);
@@ -504,9 +533,16 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
 
         filename_pos += 10;
         size_t filename_end = part_headers.find("\"", filename_pos);
+        if (filename_end == std::string::npos)
+        {
+            pos = body.find(boundary, headers_end);
+            continue;
+        }
         std::string filename = part_headers.substr(filename_pos, filename_end - filename_pos);
 
-        std::string file_path = loc.upload_store + "/" + filename;
+        std::string file_path = _resolvePath(loc.upload_store, "/" + filename);
+        if (file_path.empty())
+            return buildErrorResponse(403, config);
 
         std::ofstream file(file_path.c_str(), std::ios::binary);
         if (!file.is_open())
@@ -517,7 +553,8 @@ HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &
         size_t next_boundary = body.find(boundary, data_start);
         if (next_boundary == std::string::npos)
         {
-            break;
+            file.close();
+            return buildErrorResponse(400, config);
         }
 
         size_t data_end = next_boundary - 2;

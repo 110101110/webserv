@@ -25,6 +25,21 @@ namespace Utils{
         return ss.str();
     }
 
+    std::string htmlEscape(const std::string &s)
+    {
+        std::string out;
+        for (size_t i = 0; i < s.size(); i++)
+        {
+            if      (s[i] == '&')  out += "&amp;";
+            else if (s[i] == '<')  out += "&lt;";
+            else if (s[i] == '>')  out += "&gt;";
+            else if (s[i] == '"')  out += "&quot;";
+            else if (s[i] == '\'') out += "&#39;";
+            else                   out += s[i];
+        }
+        return out;
+    }
+
     bool isValidIP(const std::string &ip)
     {
         if (ip.empty() || ip[ip.length() - 1] == '.')

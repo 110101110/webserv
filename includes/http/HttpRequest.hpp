@@ -39,7 +39,7 @@ class HttpRequest
 	std::string _http_version;
 	std::map<std::string, std::string> _header;
 	std::string _body;
-	bool is_complete;
+	bool _is_complete;
 	int _error_code;
 };
 
