@@ -22,11 +22,10 @@ ConfigParser::ConfigParser() {
 	_locationHandlers["return"] = &ConfigParser::parseReturnUrl;
 	_locationHandlers["upload_store"] = &ConfigParser::parseUploadStore;
 	_locationHandlers["cgi_ext"] = &ConfigParser::parseCgiExt;
-	_locationHandlers["cgi_path"] = &ConfigParser::parseCgiPath;
 	_locationHandlers["methods"] = &ConfigParser::parseMethods;
 
 	_locationHandlers["allow_methods"] = &ConfigParser::parseMethods;
-	_locationHandlers["cgi_pass"] = &ConfigParser::parseCgiPath;
+	_locationHandlers["cgi_path"] = &ConfigParser::parseCgiPath;
 }
 
 ConfigParser::ConfigParser(const ConfigParser &other) {
@@ -307,12 +306,14 @@ void ConfigParser::parseCgiExt(std::stringstream& ss, Location& loc) {
 	std::string word;
 	if (!(ss >> word) || word.find(';') == std::string::npos) throw std::runtime_error("Missing ';' for cgi_ext");
 	loc.cgi_ext = Utils::cleanToken(word);
+	LOG_DEBUG(loc.cgi_ext);
 }
 
 void ConfigParser::parseCgiPath(std::stringstream& ss, Location& loc) {
 	std::string word;
 	if (!(ss >> word) || word.find(';') == std::string::npos) throw std::runtime_error("Missing ';' for cgi_path");
 	loc.cgi_path = Utils::cleanToken(word);
+	LOG_DEBUG(loc.cgi_path);
 }
 
 void ConfigParser::parseMethods(std::stringstream& ss, Location& loc) {

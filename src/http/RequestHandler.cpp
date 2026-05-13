@@ -79,6 +79,7 @@ bool RequestHandler::findLocation(const std::string &path,
 	for (size_t i = 0; i < config.locations.size(); ++i)
 	{
 		const std::string &lpath = config.locations[i].path;
+		// LOG_DEBUG(lpath);
 		if (lpath.size() > 2 && lpath[0] == '~' && lpath[1] == ' ')
 		{
 			if (_matchTildePattern(lpath.substr(2), path))

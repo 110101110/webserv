@@ -10,7 +10,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 
-static const int CGI_TIMEOUT_SEC = 30;
+static const int CGI_TIMEOUT_SEC = 7;
 
 class ServerManager {
 	private:

@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sstream>
+// #include "config/ServerConfig.hpp"
 
 ServerManager::ServerManager() {}
 
@@ -136,7 +137,7 @@ void ServerManager::run() {
 				}
 			}
 		}
-		_checkCgiTimeouts();
+		// _checkCgiTimeouts();
 	}
 }
 
