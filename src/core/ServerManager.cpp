@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sstream>
-// #include "config/ServerConfig.hpp"
 
 ServerManager::ServerManager() {}
 
@@ -85,6 +84,7 @@ void ServerManager::setupServers() {
 			throw std::runtime_error("listen failed");
 		}
 		_listen_fds.push_back(fd);
+		_fd_to_port[fd] = _configs[i].port;
 		bound_sockets.push_back(std::make_pair(_configs[i].host, _configs[i].port));
 
 		//adding fd to pollfd for multiplexer
@@ -109,11 +109,12 @@ void ServerManager::run() {
 			throw std::runtime_error("poll() failed");
 		}
 		for (int i = _pollfds.size() - 1; i >= 0; i--){
-			if (_pollfds[i].revents == 0) continue;
+			short revents = _pollfds[i].revents;
+			if (revents == 0) continue;
 			int currentFd = _pollfds[i].fd;
 
 			// POLLHUP / POLLERR : pipe CGI fermé (processus terminé) ou erreur client
-			if (_pollfds[i].revents & (POLLERR | POLLHUP | POLLNVAL)){
+			if (revents & (POLLERR | POLLHUP | POLLNVAL)){
 				if (_cgiContexts.count(currentFd)){
 					_readCgiOutput(currentFd); // vide les données restantes puis finalise
 				} else {
@@ -122,7 +123,7 @@ void ServerManager::run() {
 				}
 				continue;
 			}
-			if (_pollfds[i].revents & POLLIN){
+			if (revents & POLLIN){
 				if (std::find(_listen_fds.begin(), _listen_fds.end(), currentFd) != _listen_fds.end()){
 					_acceptNewConnection(currentFd);
 				} else if (_cgiContexts.count(currentFd)){
@@ -131,13 +132,13 @@ void ServerManager::run() {
 					_readFromClient(currentFd);
 				}
 			}
-			if (_pollfds[i].revents & POLLOUT){
+			if (revents & POLLOUT){
 				if (_clients.count(currentFd) && _clients[currentFd].getState() == WRITING_REPONSE){
 					_writeToClient(currentFd);
 				}
 			}
 		}
-		// _checkCgiTimeouts();
+		_checkCgiTimeouts();
 	}
 }
 

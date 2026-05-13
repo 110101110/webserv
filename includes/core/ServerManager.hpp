@@ -3,6 +3,7 @@
 #include "core/Client.hpp"
 #include "config/ServerConfig.hpp"
 #include "http/CgiContext.hpp"
+#include "http/HttpRequest.hpp"
 #include <vector>
 #include <map>
 #include <string>
@@ -16,12 +17,14 @@ class ServerManager {
 	private:
 	std::vector<ServerConfig>	_configs;
 	std::vector<int>			_listen_fds;
+	std::map<int, int>			_fd_to_port; // listen_fd → port
 	std::vector<struct pollfd>	_pollfds;
 	std::map<int, Client>		_clients;
 	std::map<int, CgiContext>	_cgiContexts; // clé : pipe_out fd
 
 	//helper funtion for setup
 	in_addr_t	_convertIP(const std::string& ip);
+	size_t		_findConfig(int serverFd, const HttpRequest &req) const;
 
 	//helper function for run
 	void	_acceptNewConnection(int serverFd);

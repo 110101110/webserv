@@ -1,9 +1,9 @@
 #include "core/Client.hpp"
 #include "utils/Logger.hpp"
 
-Client::Client() : _fd(-1), _state(READING_REQUEST) {}
+Client::Client() : _fd(-1), _server_fd(-1), _state(READING_REQUEST) {}
 
-Client::Client(int fd) : _fd(fd), _state(READING_REQUEST){}
+Client::Client(int fd, int serverFd) : _fd(fd), _server_fd(serverFd), _state(READING_REQUEST){}
 
 Client::Client(const Client &other){
 	*this = other;
@@ -13,6 +13,7 @@ Client &Client::operator=(const Client &other){
 	if (this != &other)
 	{
 		this->_fd = other._fd;
+		this->_server_fd = other._server_fd;
 		this->_state = other._state;
 		this->_requestBuffer = other._requestBuffer;
 		this->_responseBuffer = other._responseBuffer;
@@ -24,6 +25,10 @@ Client::~Client() {}
 
 int Client::getFd() const{
 	return _fd;
+}
+
+int Client::getServerFd() const{
+	return _server_fd;
 }
 
 ClientState Client::getState() const{

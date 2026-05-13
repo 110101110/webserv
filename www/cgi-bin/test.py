@@ -35,3 +35,4 @@ html = """<html>
 sys.stdout.write("Content-Type: text/html\r\n")
 sys.stdout.write("\r\n")
 sys.stdout.write(html)
+sys.stdout.write("\n")

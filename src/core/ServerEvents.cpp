@@ -13,6 +13,57 @@
 #include <sstream>
 #include <string>
 
+// Trouve l'index de la ServerConfig correspondant à une requête entrante.
+//
+// Étape 1 : on récupère le port associé au fd serveur (celui qui a accepté
+//           la connexion) via _fd_to_port.
+//
+// Étape 2 : on parcourt _configs à la recherche des serveurs écoutant sur
+//           ce port. Le premier trouvé devient le "fallback" (virtual host
+//           par défaut du port).
+//
+// Étape 3 : parmi ces configs du même port, on cherche une dont le
+//           server_name correspond au header "Host" de la requête HTTP.
+//           C'est le mécanisme de virtual hosting : plusieurs serveurs sur
+//           le même port, distingués par le nom de domaine.
+//
+// Retourne l'index dans _configs du serveur le plus approprié.
+size_t ServerManager::_findConfig(int serverFd, const HttpRequest &req) const
+{
+	// Étape 1 : port du fd serveur
+	int port = -1;
+	std::map<int, int>::const_iterator fd_it = _fd_to_port.find(serverFd);
+	if (fd_it != _fd_to_port.end())
+		port = fd_it->second;
+
+	// Étape 2 & 3 : cherche le meilleur match parmi les configs
+	size_t fallback = 0;
+	bool found_port = false;
+
+	// Header "Host" envoyé par le client (ex: "webserv.local:8080" ou "inherit.test:8081")
+	std::string host_header;
+	std::map<std::string, std::string>::const_iterator h = req.getHeader().find("host");
+	if (h != req.getHeader().end())
+	{
+		// Retire le ":port" éventuel du header Host pour ne garder que le nom
+		host_header = h->second.substr(0, h->second.find(':'));
+	}
+
+	for (size_t i = 0; i < _configs.size(); ++i)
+	{
+		if (_configs[i].port != port)
+			continue;
+		if (!found_port)
+		{
+			fallback = i; // premier serveur du bon port = défaut
+			found_port = true;
+		}
+		if (!host_header.empty() && _configs[i].server_name == host_header)
+			return i; // match exact server_name → priorité maximale
+	}
+	return fallback;
+}
+
 in_addr_t ServerManager::_convertIP(const std::string &ip)
 {
 	in_addr_t result = 0;
@@ -51,13 +102,6 @@ bool ServerManager::_isRequestComplete(const std::string &buffer)
 
 		return (actualBodyReceived >= expectedBodySize);
 	}
-	// size_t chunkedPos = buffer.find("Transfer-Encoding: chunked");
-	// if (chunkedPos != std::string::npos && chunkedPos < headerEnd)
-	// {
-	// 	if (buffer.find("0\r\n\r\n") != std::string::npos)
-	// 		return true;
-	// 	return false;
-	// }
 	return true;
 }
 
@@ -71,7 +115,7 @@ void ServerManager::_acceptNewConnection(int serverFd)
 		LOG_ERROR("Failed to accept new connection");
 	// set socket non blocking
 	fcntl(newFd, F_SETFL, O_NONBLOCK);
-	_clients[newFd] = Client(newFd);
+	_clients[newFd] = Client(newFd, serverFd);
 	struct pollfd pfd;
 	pfd.fd = newFd;
 	pfd.events = POLLIN;
@@ -105,11 +149,12 @@ void ServerManager::_readFromClient(int clientFd)
 	request.parse(client.getRequestBuffer());
 
 	RequestHandler handler;
-	const ServerConfig &config = _configs[0];
+	size_t cfg_idx = _findConfig(client.getServerFd(), request);
+	const ServerConfig &config = _configs[cfg_idx];
 
 	CgiContext cgi_ctx;
 	cgi_ctx.client_fd  = clientFd;
-	cgi_ctx.config_idx = 0;
+	cgi_ctx.config_idx = cfg_idx;
 
 	HttpResponse response = handler.handleRequest(request, config, &cgi_ctx);
 

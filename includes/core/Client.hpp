@@ -13,17 +13,20 @@ enum ClientState{
 class Client{
 	private:
 	int _fd;
+	int _server_fd; // fd du socket serveur qui a accepté cette connexion
 	ClientState _state;
 	std::string _requestBuffer;
 	std::string _responseBuffer;
 
 	public : Client();
-	Client(int fd);
+	Client(int fd, int serverFd);
 	Client(const Client &other);
 	Client &operator=(const Client &other);
 	~Client();
 
+
 	int getFd() const;
+	int getServerFd() const;
 	ClientState getState() const;
 	void setState(ClientState state);
 
@@ -34,3 +37,4 @@ class Client{
 	std::string &getResponseBuffer();
 	void eraseFromResponseBuffer(ssize_t bytesSent);
 };
+

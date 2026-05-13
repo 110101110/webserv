@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <climits>
 #include <algorithm>
+#include <iostream>
 
 ConfigParser::ConfigParser() {
 	_serverHandlers["listen"] = &ConfigParser::parseListen;
@@ -101,6 +102,8 @@ void ConfigParser::parse(const std::string& filename) {
 			_configs.push_back(new_server);
 		}
 	}
+
+	
 	// fixing port conflict
 	for (size_t i = 0; i < _configs.size(); ++i)
 	{
@@ -306,14 +309,12 @@ void ConfigParser::parseCgiExt(std::stringstream& ss, Location& loc) {
 	std::string word;
 	if (!(ss >> word) || word.find(';') == std::string::npos) throw std::runtime_error("Missing ';' for cgi_ext");
 	loc.cgi_ext = Utils::cleanToken(word);
-	LOG_DEBUG(loc.cgi_ext);
 }
 
 void ConfigParser::parseCgiPath(std::stringstream& ss, Location& loc) {
 	std::string word;
 	if (!(ss >> word) || word.find(';') == std::string::npos) throw std::runtime_error("Missing ';' for cgi_path");
 	loc.cgi_path = Utils::cleanToken(word);
-	LOG_DEBUG(loc.cgi_path);
 }
 
 void ConfigParser::parseMethods(std::stringstream& ss, Location& loc) {
