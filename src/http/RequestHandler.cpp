@@ -120,8 +120,9 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 	Location		loc;
 	HttpResponse	res;
 
-	if (request.getErrorCode() != 0)
-		return buildErrorResponse(request.getErrorCode(), config);
+	int err = request.getErrorCode();
+	if (err != 0)
+		return buildErrorResponse(err > 0 ? err : 400, config);
 
 	if (request.getBody().size() > config.client_max_body_size)
 		return buildErrorResponse(413, config);
@@ -474,7 +475,7 @@ HttpResponse RequestHandler::buildErrorResponse(int code, const ServerConfig &co
 
 HttpResponse RequestHandler::handlePost(const HttpRequest &req, const Location &loc, const ServerConfig &config)
 {
-    if (loc.upload_store.empty())
+    if ( req.getMethod() == "POST" && loc.upload_store.empty())
         return buildErrorResponse(403, config);
 
     std::map<std::string, std::string> headers = req.getHeader();

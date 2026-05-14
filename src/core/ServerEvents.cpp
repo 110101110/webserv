@@ -13,21 +13,7 @@
 #include <sstream>
 #include <string>
 
-// Trouve l'index de la ServerConfig correspondant à une requête entrante.
-//
-// Étape 1 : on récupère le port associé au fd serveur (celui qui a accepté
-//           la connexion) via _fd_to_port.
-//
-// Étape 2 : on parcourt _configs à la recherche des serveurs écoutant sur
-//           ce port. Le premier trouvé devient le "fallback" (virtual host
-//           par défaut du port).
-//
-// Étape 3 : parmi ces configs du même port, on cherche une dont le
-//           server_name correspond au header "Host" de la requête HTTP.
-//           C'est le mécanisme de virtual hosting : plusieurs serveurs sur
-//           le même port, distingués par le nom de domaine.
-//
-// Retourne l'index dans _configs du serveur le plus approprié.
+
 size_t ServerManager::_findConfig(int serverFd, const HttpRequest &req) const
 {
 	// Étape 1 : port du fd serveur
@@ -92,6 +78,8 @@ bool ServerManager::_isRequestComplete(const std::string &buffer)
 	if (headerEnd == std::string::npos)
 		return false;
 	size_t contentLengthPos = buffer.find("Content-Length: ");
+	if (contentLengthPos == std::string::npos)
+      contentLengthPos = buffer.find("content-length: ");
 	if (contentLengthPos != std::string::npos && contentLengthPos < headerEnd)
 	{
 		size_t valueStart = contentLengthPos + 16;
@@ -111,10 +99,16 @@ void ServerManager::_acceptNewConnection(int serverFd)
 	socklen_t clientLen = sizeof(clientAddr);
 
 	int newFd = accept(serverFd, (sockaddr *)&clientAddr, &clientLen);
-	if (newFd < 0)
+	if (newFd < 0){
 		LOG_ERROR("Failed to accept new connection");
+		return;
+	}
 	// set socket non blocking
-	fcntl(newFd, F_SETFL, O_NONBLOCK);
+	if (fcntl(newFd, F_SETFL, O_NONBLOCK) < 0){
+		LOG_ERROR("Failed to set non-blocking on client fd");
+		close(newFd);
+		return;
+	}
 	_clients[newFd] = Client(newFd, serverFd);
 	struct pollfd pfd;
 	pfd.fd = newFd;

@@ -8,12 +8,12 @@
 #include "utils/Logger.hpp"
 #include "config/ServerConfig.hpp"
 
-// bool g_running = true;
+bool g_running = true;
 
-// // void handle_sigint(int sig) {
-// // 	(void)sig;
-// // 	g_running = false;
-// // }
+void handle_sigint(int sig) {
+	(void)sig;
+	g_running = false;
+}
 
 
 int main(int argc, char **argv)
@@ -23,6 +23,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	try{
+		handle_sigint(0);
 		ConfigParser parser;
 		parser.parse(argv[1]);
 		ServerManager manager(parser.getConfigs());

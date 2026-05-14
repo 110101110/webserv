@@ -2,8 +2,6 @@
 #include "core/Client.hpp"
 #include "utils/Logger.hpp"
 #include "utils/Utils.hpp"
-#include "utils/Logger.hpp"
-#include "core/Client.hpp"
 #include "http/HttpRequest.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -18,16 +16,6 @@ ServerManager::ServerManager() {}
 ServerManager::ServerManager(const std::vector<ServerConfig> &configs) : _configs(configs) {}
 
 ServerManager::ServerManager(const ServerManager &other) { *this = other; }
-
-ServerManager &ServerManager::operator=(const ServerManager &other)
-{
-	if (this != &other)
-	{
-		this->_configs = other._configs;
-		this->_listen_fds = other._listen_fds;
-	}
-	return *this;
-}
 
 ServerManager::~ServerManager() {
 	for (size_t i = 0; i < _listen_fds.size(); ++i) {
