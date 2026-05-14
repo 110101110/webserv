@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Webserv — About</title>
+    <style>
+        :root { --red: #e50914; --bg: #141414; --surface: #1c1c1c; --border: #2a2a2a; --text: #e5e5e5; --muted: #777; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+        header {
+            background: var(--surface);
+            border-bottom: 2px solid var(--red);
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 22px; color: var(--red); letter-spacing: 3px; text-transform: uppercase; }
+        nav a { color: var(--muted); text-decoration: none; font-size: 13px; margin-left: 20px; transition: color .15s; }
+        nav a:hover { color: var(--text); }
+        .hero {
+            padding: 80px 40px 60px;
+            max-width: 760px;
+            margin: 0 auto;
+        }
+        .tag { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--red); margin-bottom: 14px; }
+        h2 { font-size: 42px; letter-spacing: -1px; line-height: 1.2; margin-bottom: 20px; }
+        .subtitle { font-size: 16px; color: var(--muted); line-height: 1.7; margin-bottom: 50px; max-width: 560px; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 760px; margin: 0 auto 60px; padding: 0 40px; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 22px 24px;
+        }
+        .card-icon { font-size: 24px; margin-bottom: 10px; }
+        .card h3 { font-size: 14px; margin-bottom: 8px; color: var(--text); }
+        .card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            font-size: 12px;
+            color: var(--border);
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Webserv</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/features.html">Features</a>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <div class="tag">42 School Project</div>
+        <h2>A web server<br>written in C++98</h2>
+        <p class="subtitle">
+            Built from scratch without any external library.
+            Handles HTTP/1.1, non-blocking I/O with <code>poll()</code>,
+            CGI execution, file uploads, and virtual hosting.
+        </p>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-icon">⚡</div>
+            <h3>Non-blocking I/O</h3>
+            <p>Single-threaded event loop using <code>poll()</code>. Handles hundreds of concurrent connections without blocking.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">🔀</div>
+            <h3>CGI Support</h3>
+            <p>Executes Python scripts via <code>fork()</code> + <code>execve()</code>. CGI processes are supervised with a 7-second timeout.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">📤</div>
+            <h3>File Upload</h3>
+            <p>Supports <code>multipart/form-data</code> and raw body uploads. Files are saved to a configurable <code>upload_store</code> directory.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon">🌐</div>
+            <h3>Virtual Hosts</h3>
+            <p>Multiple servers on the same port, differentiated by the <code>Host</code> header. Nginx-like configuration file.</p>
+        </div>
+    </div>
+
+    <footer>webserv/1.0 — C++98 — 42 School</footer>
+</body>
+</html>

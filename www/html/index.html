@@ -2,115 +2,461 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Webserv — Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv — Demo</title>
     <style>
-        :root { 
-            --red: #e50914; 
-            --bg: #141414; 
-            --surface: #181818; 
-            --text: #e5e5e5; 
+        :root {
+            --red:     #e50914;
+            --bg:      #141414;
+            --surface: #1c1c1c;
+            --border:  #2a2a2a;
+            --text:    #e5e5e5;
+            --muted:   #777;
+            --green:   #4caf50;
+            --orange:  #ff9800;
+            --blue:    #42a5f5;
+            --cyan:    #26c6da;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
 
-        body { 
-            background-color: var(--bg); 
-            color: var(--text); 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-            margin: 0; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            text-align: center; 
-            overflow: hidden; 
-        }
-
-        /* L'effet de fond dégradé identique aux erreurs */
-        .hero-bg { 
-            position: absolute; 
-            inset: 0; 
-            background: linear-gradient(to top, rgba(20,20,20,1) 0%, rgba(20,20,20,0.4) 100%), 
-                        url('/images/background.jpeg') center/cover no-repeat; 
-            z-index: -1; 
-            opacity: 0.2; 
-        }
-
-        .container { 
-            padding: 60px; 
-            border-left: 4px solid var(--red); 
-            background: rgba(24, 24, 24, 0.9); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8); 
-            max-width: 600px; 
-            backdrop-filter: blur(5px);
-        }
-
-        h1 { 
-            font-size: 60px; 
-            margin: 0; 
-            color: var(--red); 
-            letter-spacing: -2px;
-            text-transform: uppercase;
-        }
-
-        h2 { 
-            font-size: 20px; 
-            margin: 10px 0 30px 0; 
-            text-transform: uppercase; 
-            letter-spacing: 4px; 
-            color: #ffffff;
-        }
-
-        p { 
-            color: #b3b3b3; 
-            font-size: 18px; 
-            margin-bottom: 40px; 
-            line-height: 1.6; 
-        }
-
-        .nav-links {
+        header {
+            background: var(--surface);
+            border-bottom: 2px solid var(--red);
+            padding: 16px 40px;
             display: flex;
-            gap: 15px;
-            justify-content: center;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 24px; color: var(--red); letter-spacing: 3px; text-transform: uppercase; }
+        header p { color: var(--muted); font-size: 12px; }
+        nav a { color: var(--muted); text-decoration: none; font-size: 13px; margin-left: 20px; }
+        nav a:hover { color: var(--text); }
+
+        .wrapper { max-width: 860px; margin: 0 auto; padding: 30px 20px 70px; }
+
+        .section-label {
+            font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
+            color: var(--muted); padding-bottom: 8px; margin: 36px 0 14px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .btn { 
-            display: inline-block; 
-            background: var(--red); 
-            color: white; 
-            padding: 12px 25px; 
-            text-decoration: none; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            border-radius: 2px; 
-            transition: transform 0.2s, background 0.2s;
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 6px; padding: 18px 20px; margin-bottom: 12px;
+        }
+        .card-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; font-weight: 600; }
+
+        .badge { font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 2px 9px; border-radius: 3px; text-transform: uppercase; }
+        .get    { background: #1b3a1b; color: var(--green); }
+        .post   { background: #3a2a0e; color: var(--orange); }
+        .delete { background: #3a1212; color: #ef5350; }
+        .cgi    { background: #0e2038; color: var(--blue); }
+        .redir  { background: #0d2e30; color: var(--cyan); }
+
+        .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+        .row:last-child { margin-bottom: 0; }
+
+        input[type="text"], input[type="file"], textarea {
+            flex: 1; min-width: 160px; background: #111; border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text); padding: 7px 11px;
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 13px;
+        }
+        input[type="file"] { padding: 5px 11px; }
+        textarea { height: 72px; resize: vertical; }
+
+        button {
+            background: var(--red); color: #fff; border: none; border-radius: 4px;
+            padding: 7px 18px; cursor: pointer; font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; transition: opacity .15s; white-space: nowrap;
+        }
+        button:hover { opacity: .82; }
+        button:disabled { opacity: .4; cursor: not-allowed; }
+        button.sec { background: #2c2c2c; border: 1px solid var(--border); }
+        button.blue-btn { background: #0d47a1; }
+
+        a.pill {
+            display: inline-block; background: #1e1e1e; border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text); text-decoration: none;
+            padding: 7px 14px; font-size: 12px; white-space: nowrap; transition: background .15s;
+        }
+        a.pill:hover { background: #2a2a2a; }
+
+        .result { display: none; margin-top: 14px; }
+        .result.on { display: block; }
+
+        .res-status {
+            display: inline-block; font-family: monospace; font-size: 13px;
+            font-weight: 700; padding: 2px 10px; border-radius: 3px; margin-bottom: 7px;
+        }
+        .s2 { background: #1b3a1b; color: var(--green); }
+        .s3 { background: #0d2e30; color: var(--cyan); }
+        .s4 { background: #3a2a0e; color: var(--orange); }
+        .s5 { background: #3a1212; color: #ef5350; }
+
+        .res-headers { font-family: monospace; font-size: 11px; color: #555; margin-bottom: 6px; white-space: pre; }
+        .res-body {
+            background: #0a0a0a; border: 1px solid #222; border-radius: 4px;
+            padding: 10px 13px; font-family: monospace; font-size: 12px; color: #bbb;
+            max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-all;
         }
 
-        .btn:hover {
-            background: #ff0f1a;
-            transform: scale(1.05);
+        /* ── Timeline (CGI non-bloquant) ── */
+        .timeline { margin-top: 14px; display: none; }
+        .timeline.on { display: block; }
+        .tl-entry {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 10px 14px; border-radius: 4px; margin-bottom: 8px;
+            background: #111; border: 1px solid var(--border);
         }
+        .tl-time {
+            font-family: monospace; font-size: 12px; color: var(--muted);
+            min-width: 80px; padding-top: 1px;
+        }
+        .tl-msg { font-size: 13px; flex: 1; }
+        .tl-ok   { border-left: 3px solid var(--green); }
+        .tl-wait { border-left: 3px solid var(--orange); }
+        .tl-err  { border-left: 3px solid #ef5350; }
+        .tl-info { border-left: 3px solid var(--blue); }
 
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #b3b3b3;
+        .spinner {
+            display: inline-block; width: 12px; height: 12px;
+            border: 2px solid #333; border-top-color: var(--orange);
+            border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .btn-outline:hover {
-            background: rgba(255,255,255,0.1);
-            border-color: white;
-        }
+        .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
     </style>
 </head>
 <body>
-    <div class="hero-bg"></div>
-    
-    <div class="container">
-        <h1>WEBSERV</h1>
-        <h2>C++98 HTTP Server</h2>
-        
-        <p>
-            Welcome to our custom-built web server.
-        </p>
 
+<header>
+    <div>
+        <h1>Webserv</h1>
+        <p>C++98 HTTP/1.1 Server — Demo</p>
     </div>
+    <nav>
+        <a href="/about.html">About</a>
+        <a href="/features.html">Features</a>
+        <a href="/images/" target="_blank">Images</a>
+        <a href="/upload/" target="_blank">Uploads</a>
+    </nav>
+</header>
+
+<div class="wrapper">
+
+    <!-- ── STATIC GET ── -->
+    <div class="section-label">GET — Static Files</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge get">GET</span> Fetch any path</div>
+        <div class="row">
+            <input type="text" id="get-path" value="/">
+            <button onclick="doGet('get-path','r-get')">Send</button>
+        </div>
+        <div class="row" style="gap:8px">
+            <span style="font-size:12px;color:var(--muted)">Quick:</span>
+            <button class="sec" onclick="quickGet('/','r-get')">/</button>
+            <button class="sec" onclick="quickGet('/about.html','r-get')">/about.html</button>
+            <button class="sec" onclick="quickGet('/features.html','r-get')">/features.html</button>
+            <a class="pill" href="/about.html" target="_blank">about ↗</a>
+            <a class="pill" href="/features.html" target="_blank">features ↗</a>
+        </div>
+        <div class="result" id="r-get"></div>
+    </div>
+
+    <!-- ── UPLOAD ── -->
+    <div class="section-label">POST — File Upload</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge post">POST</span> Multipart upload → <code style="color:var(--muted);font-size:12px">/upload</code></div>
+        <div class="row">
+            <input type="file" id="upload-file">
+            <button onclick="doUpload()">Upload</button>
+            <a class="pill" href="/upload/" target="_blank">/upload ↗</a>
+        </div>
+        <div class="note">Filename is auto-filled in the Delete field below after a successful upload.</div>
+        <div class="result" id="r-upload"></div>
+    </div>
+
+    <!-- ── DELETE ── -->
+    <div class="section-label">DELETE — Remove a File</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge delete">DELETE</span> Delete uploaded file</div>
+        <div class="row">
+            <input type="text" id="del-name" placeholder="filename (e.g. photo.jpg)">
+            <button onclick="doDelete()">Delete</button>
+        </div>
+        <div class="result" id="r-delete"></div>
+    </div>
+
+    <!-- ── CGI normal ── -->
+    <div class="section-label">CGI — Standard Requests</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge cgi">CGI GET</span> /cgi-bin/test.py with query string</div>
+        <div class="row">
+            <input type="text" id="cgi-q" value="name=evaluator&amp;project=webserv">
+            <button onclick="doCgiGet()">Send</button>
+        </div>
+        <div class="result" id="r-cgi-get"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge cgi">CGI POST</span> /cgi-bin/test.py with body</div>
+        <div class="row">
+            <textarea id="cgi-body">Hello from the POST body!</textarea>
+        </div>
+        <div class="row"><button onclick="doCgiPost()">Send</button></div>
+        <div class="result" id="r-cgi-post"></div>
+    </div>
+
+    <!-- ── CGI NON-BLOQUANT ── -->
+    <div class="section-label">CGI — Non-Blocking Proof</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge cgi">AUTO TEST</span> Infinite CGI + parallel static request</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+            Fires <code>/cgi-bin/infini.py</code> (infinite loop) then 400 ms later sends
+            <code>GET /</code>. If the server is truly non-blocking the static page responds
+            immediately while the CGI is still pending. The CGI gets killed and returns
+            <strong>504</strong> after the 7-second timeout.
+        </p>
+        <div class="row">
+            <button id="btn-autotest" onclick="runAutoTest()">▶ Run Auto Test</button>
+        </div>
+        <div class="timeline" id="tl-auto"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge cgi">MANUAL</span> Individual CGI scripts</div>
+        <div class="row">
+            <button class="sec" onclick="runSingleCgi('/cgi-bin/infini.py','r-manual','infini.py (infinite loop → 504)')">infini.py</button>
+            <button class="sec" onclick="runSingleCgi('/cgi-bin/sleep.py','r-manual','sleep.py (sleep 10000s → 504)')">sleep.py</button>
+            <button class="sec" onclick="runSingleCgi('/cgi-bin/bad_cgi.py','r-manual','bad_cgi.py (malformed output → 500)')">bad_cgi.py</button>
+            <button class="sec" onclick="runSingleCgi('/cgi-bin/hello.py','r-manual','hello.py (valid CGI)')">hello.py</button>
+        </div>
+        <div class="note" style="margin-bottom:8px">infini.py and sleep.py will both return 504 after ~7 seconds.</div>
+        <div class="result" id="r-manual"></div>
+    </div>
+
+    <!-- ── ERRORS ── -->
+    <div class="section-label">Error Handling</div>
+
+    <div class="card">
+        <div class="card-title">Trigger HTTP error responses</div>
+        <div class="row">
+            <button class="sec" onclick="req('GET','/does-not-exist',null,null,'r-errors')">404 Not Found</button>
+            <button class="sec" onclick="do413()">413 Body Too Large</button>
+            <button class="sec" onclick="req('DELETE','/html/index.html',null,null,'r-errors')">405 Not Allowed</button>
+            <button class="sec" onclick="req('DELETE','/upload/',null,null,'r-errors')">403 Forbidden</button>
+        </div>
+        <div class="result" id="r-errors"></div>
+    </div>
+
+    <!-- ── REDIRECT ── -->
+    <div class="section-label">Redirect</div>
+
+    <div class="card">
+        <div class="card-title"><span class="badge redir">301</span> /old-page → /index.html</div>
+        <div class="row">
+            <button onclick="doRedirect()">Test (follow)</button>
+            <a class="pill" href="/old-page" target="_blank">Open in browser ↗</a>
+        </div>
+        <div class="result" id="r-redir"></div>
+    </div>
+
+</div>
+
+<script>
+/* ── utils ── */
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function sClass(code) {
+    return code >= 500 ? 's5' : code >= 400 ? 's4' : code >= 300 ? 's3' : 's2';
+}
+function headersToObj(h) {
+    var o = {};
+    h.forEach(function(v,k){ o[k]=v; });
+    return o;
+}
+function showResult(id, code, headers, body) {
+    var el = document.getElementById(id);
+    el.className = 'result on';
+    var hLines = '';
+    for (var k in headers) hLines += esc(k) + ': ' + esc(headers[k]) + '\n';
+    var preview = body.length > 600 ? body.substring(0,600) + '\n… (truncated)' : body;
+    el.innerHTML =
+        '<div class="res-status ' + sClass(code) + '">HTTP/1.0 ' + code + '</div>' +
+        (hLines ? '<div class="res-headers">' + hLines + '</div>' : '') +
+        '<div class="res-body">' + esc(preview) + '</div>';
+}
+function showErr(id, e) {
+    var el = document.getElementById(id);
+    el.className = 'result on';
+    el.innerHTML = '<div class="res-body" style="color:#ef5350">Network error: ' + esc(e.message) + '</div>';
+}
+
+/* ── GET ── */
+function doGet(inputId, resultId) {
+    var path = document.getElementById(inputId).value.trim() || '/';
+    fetch(path, {redirect:'follow'})
+        .then(function(r){ return r.text().then(function(b){ showResult(resultId, r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr(resultId, e); });
+}
+function quickGet(path, resultId) {
+    document.getElementById('get-path').value = path;
+    fetch(path, {redirect:'follow'})
+        .then(function(r){ return r.text().then(function(b){ showResult(resultId, r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr(resultId, e); });
+}
+
+/* ── POST upload ── */
+function doUpload() {
+    var fi = document.getElementById('upload-file');
+    if (!fi.files.length) { alert('Select a file first.'); return; }
+    var file = fi.files[0];
+    var fd = new FormData();
+    fd.append('file', file, file.name);
+    fetch('/upload/' + encodeURIComponent(file.name), {method:'POST', body:fd})
+        .then(function(r){ return r.text().then(function(b){
+            showResult('r-upload', r.status, headersToObj(r.headers), b || '(no body)');
+            if (r.ok) document.getElementById('del-name').value = file.name;
+        }); })
+        .catch(function(e){ showErr('r-upload', e); });
+}
+
+/* ── DELETE ── */
+function doDelete() {
+    var name = document.getElementById('del-name').value.trim();
+    if (!name) { alert('Enter a filename.'); return; }
+    fetch('/upload/' + encodeURIComponent(name), {method:'DELETE'})
+        .then(function(r){ return r.text().then(function(b){
+            showResult('r-delete', r.status, headersToObj(r.headers), b || '(204 No Content)');
+        }); })
+        .catch(function(e){ showErr('r-delete', e); });
+}
+
+/* ── CGI standard ── */
+function doCgiGet() {
+    var q = document.getElementById('cgi-q').value;
+    fetch('/cgi-bin/test.py?' + q)
+        .then(function(r){ return r.text().then(function(b){ showResult('r-cgi-get', r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr('r-cgi-get', e); });
+}
+function doCgiPost() {
+    fetch('/cgi-bin/test.py', {method:'POST', headers:{'Content-Type':'text/plain'}, body:document.getElementById('cgi-body').value})
+        .then(function(r){ return r.text().then(function(b){ showResult('r-cgi-post', r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr('r-cgi-post', e); });
+}
+
+/* ── CGI manual ── */
+function runSingleCgi(path, resultId, label) {
+    var el = document.getElementById(resultId);
+    el.className = 'result on';
+    el.innerHTML = '<div class="res-body"><span class="spinner"></span>Waiting for <strong>' + esc(label) + '</strong>…</div>';
+    var t0 = Date.now();
+    fetch(path)
+        .then(function(r){ return r.text().then(function(b){
+            var ms = Date.now() - t0;
+            showResult(resultId, r.status, headersToObj(r.headers), '[' + ms + 'ms] ' + (b || '(no body)'));
+        }); })
+        .catch(function(e){ showErr(resultId, e); });
+}
+
+/* ─────────────────────────────────────────────────────
+   CGI NON-BLOCKING AUTO TEST
+   ────────────────────────────────────────────────────── */
+function addEntry(tlId, cssClass, timeLabel, html) {
+    var tl = document.getElementById(tlId);
+    tl.className = 'timeline on';
+    var div = document.createElement('div');
+    div.className = 'tl-entry ' + cssClass;
+    div.innerHTML = '<div class="tl-time">' + esc(timeLabel) + '</div><div class="tl-msg">' + html + '</div>';
+    tl.appendChild(div);
+}
+
+function runAutoTest() {
+    var btn = document.getElementById('btn-autotest');
+    btn.disabled = true;
+
+    var tl = document.getElementById('tl-auto');
+    tl.className = 'timeline on';
+    tl.innerHTML = '';
+
+    var t0 = Date.now();
+    function ms() { return (Date.now() - t0) + 'ms'; }
+
+    addEntry('tl-auto', 'tl-info', 't = 0ms',
+        'Firing <code>GET /cgi-bin/infini.py</code> (infinite loop). Waiting for server timeout…');
+
+    /* ── Request 1 : infinite CGI ── */
+    var cgiDone = false;
+    fetch('/cgi-bin/infini.py')
+        .then(function(r) { return r.text().then(function(b) {
+            cgiDone = true;
+            var t = ms();
+            var ok = (r.status === 504);
+            addEntry('tl-auto', ok ? 'tl-err' : 'tl-wait', 't = ' + t,
+                '<strong>CGI response: HTTP ' + r.status + '</strong> ' +
+                (ok ? '✓ 504 Gateway Timeout — process killed by watchdog' : '(unexpected status)')
+            );
+            btn.disabled = false;
+        }); })
+        .catch(function(e) {
+            addEntry('tl-auto', 'tl-err', 't = ' + ms(), 'CGI fetch error: ' + esc(e.message));
+            btn.disabled = false;
+        });
+
+    /* ── Request 2 : static GET, fired 400 ms later ── */
+    setTimeout(function() {
+        if (cgiDone) return; // CGI already finished (shouldn't happen in < 400ms)
+        addEntry('tl-auto', 'tl-info', 't = ' + ms(),
+            '<span class="spinner"></span>Sending <code>GET /</code> <em>while CGI is still pending</em>…');
+
+        var t1 = Date.now();
+        fetch('/')
+            .then(function(r) { return r.text().then(function(b) {
+                var elapsed = Date.now() - t1;
+                addEntry('tl-auto', 'tl-ok', 't = ' + ms(),
+                    '<strong>Static GET responded in ' + elapsed + ' ms — HTTP ' + r.status + '</strong> ✓ ' +
+                    'Server was <strong>not blocked</strong> by the pending CGI');
+            }); })
+            .catch(function(e) {
+                addEntry('tl-auto', 'tl-err', 't = ' + ms(), 'Static fetch error: ' + esc(e.message));
+            });
+    }, 400);
+}
+
+/* ── generic ── */
+function req(method, path, headers, body, resultId) {
+    var opts = {method:method};
+    if (headers) opts.headers = headers;
+    if (body)    opts.body    = body;
+    fetch(path, opts)
+        .then(function(r){ return r.text().then(function(b){ showResult(resultId, r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr(resultId, e); });
+}
+
+function do413() {
+    var big = new Uint8Array(11 * 1024 * 1024);
+    fetch('/upload/bigfile.bin', {method:'POST', headers:{'Content-Type':'application/octet-stream'}, body:big})
+        .then(function(r){ return r.text().then(function(b){ showResult('r-errors', r.status, headersToObj(r.headers), b); }); })
+        .catch(function(e){ showErr('r-errors', e); });
+}
+
+function doRedirect() {
+    fetch('/old-page', {redirect:'follow'})
+        .then(function(r) { return r.text().then(function(b) {
+            var info = r.redirected ? 'Followed redirect → ' + r.url + '\n\n' : '';
+            showResult('r-redir', r.status, headersToObj(r.headers), info + b.substring(0, 300));
+        }); })
+        .catch(function(e){ showErr('r-redir', e); });
+}
+</script>
+
 </body>
 </html>

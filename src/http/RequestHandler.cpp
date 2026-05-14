@@ -132,8 +132,20 @@ HttpResponse RequestHandler::handleRequest(const HttpRequest &request,
 
 	if (!loc.return_url.empty())
 	{
-		res.setStatus(301, "Moved Permanently");
-		res.addHeader("Location", loc.return_url);
+		int code = 301;
+		std::string url = loc.return_url;
+		size_t space = url.find(' ');
+		if (space != std::string::npos)
+		{
+			std::string code_str = url.substr(0, space);
+			if (Utils::isNumber(code_str))
+			{
+				code = std::atoi(code_str.c_str());
+				url = url.substr(space + 1);
+			}
+		}
+		res.setStatus(code, _getStatusMessage(code));
+		res.addHeader("Location", url);
 		return res;
 	}
 	if (std::find(loc.methods.begin(), loc.methods.end(),
@@ -238,9 +250,19 @@ bool RequestHandler::launchCgi(const HttpRequest &req, const Location &loc,
 	close(inPipe[0]);
 	close(outPipe[1]);
 
-	// Écriture du body (synchrone, taille bornée par client_max_body_size)
 	if (!req.getBody().empty())
-		write(inPipe[1], req.getBody().c_str(), req.getBody().size());
+	{
+		const char *ptr = req.getBody().c_str();
+		size_t remaining = req.getBody().size();
+		while (remaining > 0)
+		{
+			ssize_t written = write(inPipe[1], ptr, remaining);
+			if (written <= 0)
+				break;
+			ptr += written;
+			remaining -= written;
+		}
+	}
 	close(inPipe[1]);
 
 	ctx.pid        = pid;
@@ -416,6 +438,10 @@ HttpResponse RequestHandler::handleDelete(const HttpRequest &req,const Location 
 std::string RequestHandler::_getStatusMessage(int code)
 {
 	switch (code) {
+		case 301: return "Moved Permanently";
+		case 302: return "Found";
+		case 307: return "Temporary Redirect";
+		case 308: return "Permanent Redirect";
 		case 400: return "Bad Request";
 		case 403: return "Forbidden";
 		case 404: return "Not Found";

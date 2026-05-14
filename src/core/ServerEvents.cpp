@@ -115,7 +115,7 @@ void ServerManager::_acceptNewConnection(int serverFd)
 	pfd.events = POLLIN;
 	pfd.revents = 0;
 	_pollfds.push_back(pfd);
-	LOG_INFO("New connection accpeted on FD: " + Utils::intToString(newFd));
+	LOG_INFO("New connection accepted on FD: " + Utils::intToString(newFd));
 }
 
 void ServerManager::_readFromClient(int clientFd)
@@ -171,7 +171,7 @@ void ServerManager::_readFromClient(int clientFd)
 
 	response.addHeader("Connection", "close");
 	client.appendToResponseBuffer(response.toString());
-	client.setState(WRITING_REPONSE);
+	client.setState(WRITING_RESPONSE);
 
 	for (size_t i = 0; i < _pollfds.size(); ++i)
 	{
@@ -226,13 +226,12 @@ void ServerManager::_finalizeCgi(int pipeFd)
 	if (_clients.count(ctx.client_fd) == 0)
 		return;
 
-	const ServerConfig &config = _configs[ctx.config_idx];
 	HttpResponse response = RequestHandler::parseCgiOutput(ctx.output);
 	response.addHeader("Connection", "close");
 
 	Client &client = _clients[ctx.client_fd];
 	client.appendToResponseBuffer(response.toString());
-	client.setState(WRITING_REPONSE);
+	client.setState(WRITING_RESPONSE);
 
 	for (size_t i = 0; i < _pollfds.size(); ++i)
 	{
@@ -243,7 +242,6 @@ void ServerManager::_finalizeCgi(int pipeFd)
 		}
 	}
 	LOG_DEBUG("CGI finalized for client FD " + Utils::intToString(ctx.client_fd));
-	(void)config;
 }
 
 // Vérifie si un processus CGI dépasse CGI_TIMEOUT_SEC secondes.
@@ -284,7 +282,7 @@ void ServerManager::_checkCgiTimeouts()
 
 		Client &client = _clients[ctx.client_fd];
 		client.appendToResponseBuffer(response.toString());
-		client.setState(WRITING_REPONSE);
+		client.setState(WRITING_RESPONSE);
 
 		for (size_t i = 0; i < _pollfds.size(); ++i)
 		{
@@ -301,7 +299,7 @@ void ServerManager::_writeToClient(int clientFd)
 {
 	Client &client = _clients[clientFd];
 
-	if (client.getState() != WRITING_REPONSE)
+	if (client.getState() != WRITING_RESPONSE)
 		return;
 	std::string &response = client.getResponseBuffer();
 	int byteSent = send(clientFd, response.c_str(), response.size(), 0);

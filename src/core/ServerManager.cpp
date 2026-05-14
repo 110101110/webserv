@@ -125,7 +125,7 @@ void ServerManager::run() {
 				}
 			}
 			if (revents & POLLOUT){
-				if (_clients.count(currentFd) && _clients[currentFd].getState() == WRITING_REPONSE){
+				if (_clients.count(currentFd) && _clients[currentFd].getState() == WRITING_RESPONSE){
 					_writeToClient(currentFd);
 				}
 			}

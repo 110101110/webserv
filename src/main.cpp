@@ -24,6 +24,7 @@ int main(int argc, char **argv)
 		parser.parse(argv[1]);
 		ServerManager manager(parser.getConfigs());
 		manager.setupServers();
+		signal(SIGPIPE, SIG_IGN);
 		manager.run();
 	}
 	catch (const std::exception &e){

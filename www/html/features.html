@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Webserv — Features</title>
+    <style>
+        :root { --red: #e50914; --bg: #141414; --surface: #1c1c1c; --border: #2a2a2a; --text: #e5e5e5; --muted: #777; --green: #4caf50; --orange: #ff9800; --blue: #42a5f5; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+        header {
+            background: var(--surface);
+            border-bottom: 2px solid var(--red);
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 22px; color: var(--red); letter-spacing: 3px; text-transform: uppercase; }
+        nav a { color: var(--muted); text-decoration: none; font-size: 13px; margin-left: 20px; }
+        nav a:hover { color: var(--text); }
+
+        .content { max-width: 760px; margin: 0 auto; padding: 50px 40px; }
+        .page-title { font-size: 32px; margin-bottom: 8px; letter-spacing: -1px; }
+        .page-sub   { font-size: 14px; color: var(--muted); margin-bottom: 40px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 10px 16px;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        tr:last-child td { border-bottom: none; }
+
+        .dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .ok  { background: var(--green); }
+        .cgi { background: var(--blue); }
+        .cfg { background: var(--orange); }
+
+        code {
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        footer { text-align: center; padding: 30px; font-size: 12px; color: var(--border); border-top: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Webserv</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/features.html">Features</a>
+        </nav>
+    </header>
+
+    <div class="content">
+        <div class="page-title">Implemented Features</div>
+        <div class="page-sub">Everything this server supports, tested during evaluation.</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="dot ok"></span>GET / POST / DELETE</td>
+                    <td>Per-location method control via <code>allow_methods</code></td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>Static file serving</td>
+                    <td>HTML, images, CSS, JS with correct <code>Content-Type</code></td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>Directory listing</td>
+                    <td><code>autoindex on</code> generates HTML listing with XSS protection</td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>File upload</td>
+                    <td><code>multipart/form-data</code> and raw body, stored in <code>upload_store</code></td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>Redirects</td>
+                    <td><code>return &lt;code&gt; &lt;url&gt;</code> — 301, 302, 307, 308</td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>Custom error pages</td>
+                    <td>400, 403, 404, 405, 413, 500, 501, 502, 503, 504, 505</td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>client_max_body_size</td>
+                    <td>413 returned when body exceeds limit (supports K/M/G suffixes)</td>
+                </tr>
+                <tr>
+                    <td><span class="dot ok"></span>Path traversal protection</td>
+                    <td><code>/../</code> sequences detected and blocked with 403</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cgi"></span>CGI execution</td>
+                    <td><code>fork()</code> + <code>execve()</code>, env vars: REQUEST_METHOD, QUERY_STRING, CONTENT_LENGTH…</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cgi"></span>Non-blocking CGI</td>
+                    <td>Output read via <code>poll()</code> on pipe, server never blocked</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cgi"></span>CGI timeout</td>
+                    <td>7-second watchdog — kills process, returns 504</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cfg"></span>Virtual hosting</td>
+                    <td>Multiple servers on same port, matched by <code>Host</code> header</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cfg"></span>Location matching</td>
+                    <td>Longest prefix wins; <code>~ .ext$</code> for extension matching</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cfg"></span>Root inheritance</td>
+                    <td>Location inherits server-level <code>root</code> and <code>index</code> if unset</td>
+                </tr>
+                <tr>
+                    <td><span class="dot cfg"></span>Multiple ports</td>
+                    <td>Each server block binds its own socket, shared if same host:port</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <footer>webserv/1.0 — C++98 — 42 School</footer>
+</body>
+</html>
