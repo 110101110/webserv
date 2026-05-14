@@ -8,13 +8,9 @@
 #include "utils/Logger.hpp"
 #include "config/ServerConfig.hpp"
 
-bool g_running = true;
+volatile sig_atomic_t g_running = 1;
 
-void handle_sigint(int sig) {
-	(void)sig;
-	g_running = false;
-}
-
+static void handle_sigint(int) { g_running = 0; }
 
 int main(int argc, char **argv)
 {
@@ -22,8 +18,8 @@ int main(int argc, char **argv)
 		std::cerr << "Usage: ./webserv <config_file>" << std::endl;
 		return 1;
 	}
+	signal(SIGINT, handle_sigint);
 	try{
-		handle_sigint(0);
 		ConfigParser parser;
 		parser.parse(argv[1]);
 		ServerManager manager(parser.getConfigs());

@@ -10,12 +10,14 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sstream>
+#include <cerrno>
+#include <csignal>
+
+extern volatile sig_atomic_t g_running;
 
 ServerManager::ServerManager() {}
 
 ServerManager::ServerManager(const std::vector<ServerConfig> &configs) : _configs(configs) {}
-
-ServerManager::ServerManager(const ServerManager &other) { *this = other; }
 
 ServerManager::~ServerManager() {
 	for (size_t i = 0; i < _listen_fds.size(); ++i) {
@@ -91,9 +93,11 @@ void ServerManager::setupServers() {
 
 void ServerManager::run() {
 	LOG_DEBUG("Starting main server loop...");
-	while (true){
+	while (g_running){
 		int ready = poll(&_pollfds[0], _pollfds.size(), 1000); // timeout 1s pour les checks CGI
 		if (ready < 0){
+			if (errno == EINTR)
+				break;
 			throw std::runtime_error("poll() failed");
 		}
 		for (int i = _pollfds.size() - 1; i >= 0; i--){

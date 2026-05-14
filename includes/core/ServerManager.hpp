@@ -41,7 +41,6 @@ class ServerManager {
 	public :
 	ServerManager();
 	ServerManager(const std::vector<ServerConfig> &configs);
-	ServerManager(const ServerManager &other);
 	~ServerManager();
 
 	void setupServers();
