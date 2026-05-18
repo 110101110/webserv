@@ -17,15 +17,11 @@
 class RequestHandler
 {
   public:
-	// cgi_out : si non-NULL et qu'une requête CGI est détectée, lance le CGI
-	// de façon non-bloquante et remplit cgi_out (cgi_out->isValid() == true).
-	// Dans ce cas, la réponse retournée est ignorée par l'appelant.
 	HttpResponse handleRequest(const HttpRequest &request,
 		const ServerConfig &config, CgiContext *cgi_out = NULL);
 
 	HttpResponse buildErrorResponse(int code, const ServerConfig &config);
 
-	// Parse la sortie brute d'un processus CGI en HttpResponse.
 	static HttpResponse parseCgiOutput(const std::string &raw);
 
   private:

@@ -22,7 +22,7 @@ class ServerConfig {
 public:
 	int port;
 	std::string host;
-	std::string server_name;
+	std::vector<std::string> server_names;
 	size_t client_max_body_size;
 
 	std::string root;

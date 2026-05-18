@@ -77,7 +77,6 @@ void ServerManager::setupServers() {
 		_fd_to_port[fd] = _configs[i].port;
 		bound_sockets.push_back(std::make_pair(_configs[i].host, _configs[i].port));
 
-		//adding fd to pollfd for multiplexer
 		struct pollfd pfd;
 		pfd.fd = fd;
 		pfd.events = POLLIN;
@@ -94,7 +93,7 @@ void ServerManager::setupServers() {
 void ServerManager::run() {
 	LOG_DEBUG("Starting main server loop...");
 	while (g_running){
-		int ready = poll(&_pollfds[0], _pollfds.size(), 1000); // timeout 1s pour les checks CGI
+		int ready = poll(&_pollfds[0], _pollfds.size(), 1000);
 		if (ready < 0){
 			if (errno == EINTR)
 				break;
@@ -105,10 +104,9 @@ void ServerManager::run() {
 			if (revents == 0) continue;
 			int currentFd = _pollfds[i].fd;
 
-			// POLLHUP / POLLERR : pipe CGI fermé (processus terminé) ou erreur client
 			if (revents & (POLLERR | POLLHUP | POLLNVAL)){
 				if (_cgiContexts.count(currentFd)){
-					_readCgiOutput(currentFd); // vide les données restantes puis finalise
+					_readCgiOutput(currentFd); 
 				} else {
 					LOG_WARNING("Disconnection on FD " + Utils::intToString(currentFd));
 					_closeConnection(currentFd);

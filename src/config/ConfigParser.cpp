@@ -90,7 +90,6 @@ void ConfigParser::parse(const std::string& filename) {
 			if (new_server.port == -1) throw std::runtime_error("Each server must have a port (listen)");
 			if (new_server.locations.empty()) throw std::runtime_error("Each server must have at least one location");
 
-			// inheritance check
 			for (size_t i = 0; i < new_server.locations.size(); ++i){
 				if (new_server.locations[i].root.empty()){
 					new_server.locations[i].root = new_server.root;
@@ -103,15 +102,12 @@ void ConfigParser::parse(const std::string& filename) {
 		}
 	}
 
-	
-	// fixing port conflict
 	for (size_t i = 0; i < _configs.size(); ++i)
 	{
 		for (size_t j = i + 1; j < _configs.size(); ++j){
 			if (_configs[i].port == _configs[j].port &&
-				_configs[i].host == _configs[j].host &&
-				_configs[i].server_name == _configs[j].server_name){
-					throw std::runtime_error("Duplicate virtual server definition for host: " + _configs[i].host + ":" + Utils::intToString(_configs[i].port) + " server_name: " + _configs[i].server_name);
+				_configs[i].host == _configs[j].host){
+					throw std::runtime_error("Duplicate virtual server definition for host: " + _configs[i].host + ":" + Utils::intToString(_configs[i].port));
 			}
 		}
 	}
@@ -154,11 +150,27 @@ void ConfigParser::parseHost(std::stringstream& ss, ServerConfig& server) {
 	server.host = host_val;
 }
 
-void ConfigParser::parseServerName(std::stringstream& ss, ServerConfig& server) {
+void ConfigParser::parseServerName(std::stringstream& ss, ServerConfig& server)
+{
 	std::string word;
-	if (!(ss >> word) || word.find(';') == std::string::npos)
-		throw std::runtime_error("Invalid server_name syntax (missing ';')");
-	server.server_name = Utils::cleanToken(word);
+
+	while (ss >> word)
+	{
+		bool end = false;
+
+		if (word.find(';') != std::string::npos)
+			end = true;
+
+		word = Utils::cleanToken(word);
+
+		if (!word.empty())
+			server.server_names.push_back(word);
+
+		if (end)
+			return;
+	}
+
+	throw std::runtime_error("Invalid server_name syntax (missing ';')");
 }
 
 void ConfigParser::parseClientMaxBodySize(std::stringstream& ss, ServerConfig& server) {

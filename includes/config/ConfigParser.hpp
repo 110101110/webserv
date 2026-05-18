@@ -10,7 +10,7 @@ class ConfigParser {
 private:
 	std::vector<ServerConfig> _configs;
 
-	//  Définition des pointeurs sur fonctions membres (Dispatch Table)
+	//  Pointeurs sur fonctions membres (Dispatch Table)
 	typedef void (ConfigParser::*ServerDirectiveHandler)(std::stringstream&, ServerConfig&);
 	typedef void (ConfigParser::*LocationDirectiveHandler)(std::stringstream&, Location&);
 

@@ -17,7 +17,7 @@ class ServerManager {
 	private:
 	std::vector<ServerConfig>	_configs;
 	std::vector<int>			_listen_fds;
-	std::map<int, int>			_fd_to_port; // listen_fd → port
+	std::map<int, int>			_fd_to_port; 
 	std::vector<struct pollfd>	_pollfds;
 	std::map<int, Client>		_clients;
 	std::map<int, CgiContext>	_cgiContexts; // clé : pipe_out fd

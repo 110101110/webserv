@@ -16,37 +16,45 @@
 
 size_t ServerManager::_findConfig(int serverFd, const HttpRequest &req) const
 {
-	// Étape 1 : port du fd serveur
 	int port = -1;
+
 	std::map<int, int>::const_iterator fd_it = _fd_to_port.find(serverFd);
 	if (fd_it != _fd_to_port.end())
 		port = fd_it->second;
 
-	// Étape 2 & 3 : cherche le meilleur match parmi les configs
-	size_t fallback = 0;
-	bool found_port = false;
-
-	// Header "Host" envoyé par le client (ex: "webserv.local:8080" ou "inherit.test:8081")
 	std::string host_header;
-	std::map<std::string, std::string>::const_iterator h = req.getHeader().find("host");
+
+	std::map<std::string, std::string>::const_iterator h =
+		req.getHeader().find("host");
+
 	if (h != req.getHeader().end())
 	{
-		// Retire le ":port" éventuel du header Host pour ne garder que le nom
-		host_header = h->second.substr(0, h->second.find(':'));
+		host_header = Utils::cleanToken(h->second);
+		size_t pos = host_header.find(':');
+		if (pos != std::string::npos)
+			host_header = host_header.substr(0, pos);
 	}
 
-	for (size_t i = 0; i < _configs.size(); ++i)
+	size_t fallback = (size_t)-1;
+
+	for (size_t i = 0; i < _configs.size(); i++)
 	{
 		if (_configs[i].port != port)
 			continue;
-		if (!found_port)
+
+		if (fallback == (size_t)-1)
+			fallback = i;
+
+		for (size_t j = 0; j < _configs[i].server_names.size(); j++)
 		{
-			fallback = i; // premier serveur du bon port = défaut
-			found_port = true;
+			if (_configs[i].server_names[j] == host_header)
+				return i;
 		}
-		if (!host_header.empty() && _configs[i].server_name == host_header)
-			return i; // match exact server_name → priorité maximale
 	}
+
+	if (fallback == (size_t)-1)
+		return 0;
+
 	return fallback;
 }
 
@@ -103,7 +111,7 @@ void ServerManager::_acceptNewConnection(int serverFd)
 		LOG_ERROR("Failed to accept new connection");
 		return;
 	}
-	// set socket non blocking
+
 	if (fcntl(newFd, F_SETFL, O_NONBLOCK) < 0){
 		LOG_ERROR("Failed to set non-blocking on client fd");
 		close(newFd);
@@ -154,7 +162,6 @@ void ServerManager::_readFromClient(int clientFd)
 
 	if (cgi_ctx.isValid())
 	{
-		// CGI lancé : on surveille pipe_out via poll
 		client.setState(CGI_READING);
 		_cgiContexts[cgi_ctx.pipe_out] = cgi_ctx;
 
@@ -183,8 +190,7 @@ void ServerManager::_readFromClient(int clientFd)
 	}
 }
 
-// Lit la sortie du processus CGI depuis pipe_fd.
-// Si EOF (bytes == 0) ou erreur → finalise la réponse.
+
 void ServerManager::_readCgiOutput(int pipeFd)
 {
 	CgiContext &ctx = _cgiContexts[pipeFd];
@@ -193,19 +199,16 @@ void ServerManager::_readCgiOutput(int pipeFd)
 	if (bytes > 0)
 	{
 		ctx.output.append(buffer, bytes);
-		return; // attendre le prochain POLLIN
+		return; 
 	}
-	// bytes == 0 : EOF (processus terminé) ou bytes < 0 : erreur
 	_finalizeCgi(pipeFd);
 }
 
-// Construit la réponse HTTP depuis la sortie CGI accumulée,
-// l'envoie au client, nettoie le contexte CGI.
+
 void ServerManager::_finalizeCgi(int pipeFd)
 {
 	CgiContext ctx = _cgiContexts[pipeFd];
 
-	// Ferme le pipe et le retire de poll
 	close(pipeFd);
 	for (std::vector<struct pollfd>::iterator it = _pollfds.begin();
 		it != _pollfds.end(); ++it)
@@ -214,7 +217,6 @@ void ServerManager::_finalizeCgi(int pipeFd)
 	}
 	_cgiContexts.erase(pipeFd);
 
-	// Récupère le processus enfant (sans bloquer)
 	int wstatus;
 	if (waitpid(ctx.pid, &wstatus, WNOHANG) == 0)
 	{
@@ -222,7 +224,6 @@ void ServerManager::_finalizeCgi(int pipeFd)
 		waitpid(ctx.pid, NULL, 0);
 	}
 
-	// Le client a peut-être été déconnecté entre-temps
 	if (_clients.count(ctx.client_fd) == 0)
 		return;
 
@@ -244,8 +245,7 @@ void ServerManager::_finalizeCgi(int pipeFd)
 	LOG_DEBUG("CGI finalized for client FD " + Utils::intToString(ctx.client_fd));
 }
 
-// Vérifie si un processus CGI dépasse CGI_TIMEOUT_SEC secondes.
-// Si oui : kill + réponse 504.
+
 void ServerManager::_checkCgiTimeouts()
 {
 	time_t now = time(NULL);

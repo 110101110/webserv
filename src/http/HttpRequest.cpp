@@ -116,7 +116,7 @@ int HttpRequest::parse(std::string request)
             size_t header_end = request.find("\r\n", version_end + 2);
             if (header_end == std::string::npos || header_end == version_end + 2)
             {
-                break; // End of headers
+                break;
             }
             std::string header_line = request.substr(version_end + 2, header_end - version_end - 2);
             size_t delimiter_pos = header_line.find(": ");
@@ -128,13 +128,11 @@ int HttpRequest::parse(std::string request)
 
                 if (_header.count(key))
                 {
-                    // Host et Content-Length dupliqués = 400 (HTTP Request Smuggling)
                     if (key == "host" || key == "content-length")
                     {
                         _error_code = 400;
                         return _error_code;
                     }
-                    // Autres headers : concaténation RFC 7230 
                     _header[key] += ", " + value;
                 }
                 else
@@ -144,7 +142,7 @@ int HttpRequest::parse(std::string request)
         }
         if (_header.find("host") == _header.end())
         {
-            _error_code = 400; // Bad Request
+            _error_code = 400; 
             return _error_code;
         }
         size_t body_pos = request.find("\r\n\r\n");
